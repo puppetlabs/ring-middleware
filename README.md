@@ -1,2 +1,3 @@
 ring-middleware
 ===============
+foo
