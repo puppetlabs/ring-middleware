@@ -1,4 +1,4 @@
-(ns puppetlabs.ring-middleware.ring-middleware-test
+(ns puppetlabs.ring-middleware.core-test
   (:require [clojure.test :refer :all]
             [puppetlabs.ring-middleware.common :refer :all]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
