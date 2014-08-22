@@ -1,25 +1,9 @@
-(ns puppetlabs.ringmiddleware.ring-middleware
-  (:require [ring.middleware.cookies     :refer [wrap-cookies]]
-            [clojure.string              :refer [join split]]
-            [puppetlabs.http.client.sync :refer [request]])
+(ns puppetlabs.ring-middleware.core
+  (:require [ring.middleware.cookies :refer [wrap-cookies]]
+            [clojure.string :refer [join split]]
+            [puppetlabs.http.client.sync :refer [request]]
+            [puppetlabs.ring-middleware.common :refer [prepare-cookies slurp-binary]])
   (:import (java.net URI)))
-
-(defn prepare-cookies
-  "Removes the :domain and :secure keys and converts the :expires key (a Date)
-  to a string in the ring response map resp. Returns resp with cookies properly
-  munged."
-  [resp]
-  (let [prepare #(-> (update-in % [1 :expires] str)
-                     (update-in [1] dissoc :domain :secure))]
-    (assoc resp :cookies (into {} (map prepare (:cookies resp))))))
-
-(defn slurp-binary
-  "Reads len bytes from InputStream is and returns a byte array."
-  [^java.io.InputStream is len]
-  (with-open [rdr is]
-    (let [buf (byte-array len)]
-      (.read rdr buf)
-      buf)))
 
 (defn wrap-proxy
   "Proxies requests to proxied-path, a local URI, to the remote URI at

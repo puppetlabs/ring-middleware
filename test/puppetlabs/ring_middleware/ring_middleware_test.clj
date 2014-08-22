@@ -1,10 +1,10 @@
-(ns puppetlabs.ringmiddleware.ring-middleware-test
+(ns puppetlabs.ring-middleware.ring-middleware-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.ringmiddleware.common :refer :all]
+            [puppetlabs.ring-middleware.common :refer :all]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [puppetlabs.ringmiddleware.ring-middleware :refer [wrap-proxy]]))
+            [puppetlabs.ring-middleware.core :refer [wrap-proxy]]))
 
 (defn proxy-target-handler
   [req]
