@@ -1,11 +1,10 @@
 (ns puppetlabs.ring-middleware.core-test
   (:require [clojure.test :refer :all]
-            [puppetlabs.ring-middleware.common :refer :all]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
             [puppetlabs.ring-middleware.core :refer [wrap-proxy]]
-            [puppetlabs.http.client.sync :as http-client]))
+            [puppetlabs.ring-middleware.testutils.common :refer :all]))
 
 (defn post-target-handler
   [req]
@@ -27,8 +26,15 @@
   (-> proxy-error-handler
       (wrap-proxy "/hello-proxy" "http://localhost:9000/hello")))
 
+(def proxy-wrapped-app-ssl
+  (-> proxy-error-handler
+      (wrap-proxy "/hello-proxy" "https://localhost:9001/hello"
+                  {:ssl-cert "./dev-resources/config/jetty/ssl/certs/localhost.pem"
+                   :ssl-key  "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
+                   :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"})))
+
 (defmacro with-target-and-proxy-servers
-  [{:keys [target proxy proxy-handler]} & body]
+  [{:keys [target proxy proxy-handler proxy-opts]} & body]
   `(with-app-with-config proxy-target-app#
      [jetty9-service]
      {:webserver ~target}
@@ -49,21 +55,71 @@
          ~@body)))
 
 (deftest test-proxy-servlet
-  (testing "basic proxy support"
-    (with-target-and-proxy-servers
-      {:target        {:host "0.0.0.0"
-                       :port 9000}
-       :proxy         {:host "0.0.0.0"
-                       :port 10000}
-       :proxy-handler proxy-wrapped-app}
-      (let [response (http-client/get "http://localhost:9000/hello/world" {:as :text})]
-        (is (= (:status response) 200))
-        (is (= (:body response) "Hello, World!")))
-      (let [response (http-client/get "http://localhost:10000/hello-proxy/world" {:as :text})]
-        (is (= (:status response) 200))
-        (is (= (:body response) "Hello, World!")))
-      (let [response (http-client/get "http://localhost:10000/hello-proxy/world" {:as :stream})]
-        (is (= (slurp (:body response)) "Hello, World!")))
-      (let [response (http-client/post "http://localhost:10000/hello-proxy/post/" {:as :stream :body "I'm posted!"})]
-        (is (= (:status response) 200))
-        (is (= (slurp (:body response)) "I'm posted!"))))))
+  (let [common-ssl-config {:ssl-cert    "./dev-resources/config/jetty/ssl/certs/localhost.pem"
+                           :ssl-key     "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
+                           :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"}]
+    
+    (testing "basic proxy support"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app}
+        (let [response (http-get "http://localhost:9000/hello/world")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))
+        (let [response (http-get "http://localhost:10000/hello-proxy/world")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))
+        (let [response (http-get "http://localhost:10000/hello-proxy/world" {:as :stream})]
+          (is (= (slurp (:body response)) "Hello, World!")))
+        (let [response (http-post "http://localhost:10000/hello-proxy/post/" {:as :stream :body "I'm posted!"})]
+          (is (= (:status response) 200))
+          (is (= (slurp (:body response)) "I'm posted!")))))
+
+    (testing "basic https proxy support"
+      (with-target-and-proxy-servers
+        {:target        (merge common-ssl-config
+                               {:ssl-host "0.0.0.0"
+                                :ssl-port 9001})
+         :proxy         (merge common-ssl-config
+                               {:ssl-host "0.0.0.0"
+                                :ssl-port 10001})
+         :proxy-handler proxy-wrapped-app-ssl}
+        (let [response (http-get "https://localhost:9001/hello/world" default-options-for-https-client)]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))
+        (let [response (http-get "https://localhost:10001/hello-proxy/world" default-options-for-https-client)]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))))
+
+    (testing "basic http->https proxy support"
+      (with-target-and-proxy-servers
+        {:target        (merge common-ssl-config
+                               {:ssl-host "0.0.0.0"
+                                :ssl-port 9001})
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app-ssl}
+        (let [response (http-get "https://localhost:9001/hello/world" default-options-for-https-client)]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))
+        (let [response (http-get "http://localhost:10000/hello-proxy/world")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))))
+
+    (testing "basic https->http proxy support"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         (merge common-ssl-config
+                               {:ssl-host "0.0.0.0"
+                                :ssl-port 10001})
+         :proxy-handler proxy-wrapped-app}
+        (let [response (http-get "http://localhost:9000/hello/world")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))
+        (let [response (http-get "https://localhost:10001/hello-proxy/world" default-options-for-https-client)]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))))))

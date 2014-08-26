@@ -1,5 +1,7 @@
-(ns puppetlabs.ring-middleware.common
-  (:require [puppetlabs.http.client.sync :as http-client]))
+(ns puppetlabs.ring-middleware.common)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Private utility functions
 
 (defn prepare-cookies
   "Removes the :domain and :secure keys and converts the :expires key (a Date)
