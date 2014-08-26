@@ -2,7 +2,7 @@
   (:require [ring.middleware.cookies :refer [wrap-cookies]]
             [clojure.string :refer [join split]]
             [puppetlabs.http.client.sync :refer [request]]
-            [puppetlabs.ring-middleware.common :refer [prepare-cookies slurp-binary]])
+            [puppetlabs.ring-middleware.common :refer [prepare-cookies]])
   (:import (java.net URI)))
 
 (defn wrap-proxy
@@ -22,8 +22,10 @@
           (-> (merge {:method (:request-method req)
                       :url (str remote-uri "?" (:query-string req))
                       :headers (dissoc (:headers req) "host" "content-length")
-                      :body (if-let [len (get-in req [:headers "content-length"])]
-                              (slurp-binary (:body req) (Integer/parseInt len)))
+                      :body (let [body (slurp (:body req))]
+                              (if-not (empty? body)
+                                body
+                                nil))
                       :as :stream} http-opts)
               request
               prepare-cookies))
