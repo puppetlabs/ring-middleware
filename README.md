@@ -30,6 +30,14 @@ The arguments are as follows:
   `wrap-proxy` when it makes a proxied request to a remote URI. For a list of available options, please
   see the options defined for [clj-http-client](https://github.com/puppetlabs/clj-http-client).
 
+For example, the following:
+
+```clj
+(wrap-proxy handler "/hello-world" "http://localhost:9000/hello")
+```
+would return a ring handler that proxies all requests with URL prefix "/hello-world" to
+`http://localhost:9000/hello`.
+
 ### Proxy Redirect Support
 
 By default, all proxy requests using `wrap-proxy` will follow any redirects, including on POST and PUT
