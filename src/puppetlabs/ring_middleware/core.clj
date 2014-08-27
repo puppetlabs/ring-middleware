@@ -12,7 +12,8 @@
   (wrap-cookies
     (fn [req]
       (if (.startsWith ^String (:uri req) (str proxied-path "/"))
-        (let [uri (URI. remote-uri-base)
+        (let [http-opts (dissoc http-opts :decompress-body)
+              uri (URI. remote-uri-base)
               remote-uri (URI. (.getScheme uri)
                                (.getAuthority uri)
                                (str (.getPath uri)
