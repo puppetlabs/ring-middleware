@@ -27,7 +27,8 @@
                                 body
                                 nil))
                       :as :stream
-                      :force-redirects true} http-opts)
+                      :force-redirects true
+                      :decompress-body false} http-opts)
               request
               prepare-cookies))
         (handler req)))))
