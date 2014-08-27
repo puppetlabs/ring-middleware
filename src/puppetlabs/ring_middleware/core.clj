@@ -12,7 +12,11 @@
   (wrap-cookies
     (fn [req]
       (if (.startsWith ^String (:uri req) (str proxied-path "/"))
-        (let [uri (URI. remote-uri-base)
+        ; Remove :decompress-body from the options map, as if this is
+        ; ever set to true, the response returned to the client making the
+        ; proxy request will be truncated
+        (let [http-opts (dissoc http-opts :decompress-body)
+              uri (URI. remote-uri-base)
               remote-uri (URI. (.getScheme uri)
                                (.getAuthority uri)
                                (str (.getPath uri)
@@ -27,7 +31,8 @@
                                 body
                                 nil))
                       :as :stream
-                      :force-redirects true} http-opts)
+                      :force-redirects true
+                      :decompress-body false} http-opts)
               request
               prepare-cookies))
         (handler req)))))
