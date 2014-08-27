@@ -238,8 +238,8 @@
           (is (= (:body response) "Non-proxied path")))
         (let [response (http-get "http://localhost:10000/different")]
           (is (= (:status response) 404)))
-        (let [response (http-get "http://localhost:10000/hello/different-path"
+        (let [response (http-get "http://localhost:10000/hello-proxy/different-path"
                                  {:follow-redirects false
                                   :as :text})]
-          (is (= (:status response 200)))
-          (is (= (:body response "Non-proxied path"))))))))
+          (is (= (:status response) 200))
+          (is (= (:body response) "Non-proxied path")))))))
