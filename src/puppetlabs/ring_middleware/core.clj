@@ -26,7 +26,8 @@
                               (if-not (empty? body)
                                 body
                                 nil))
-                      :as :stream} http-opts)
+                      :as :stream
+                      :force-redirects true} http-opts)
               request
               prepare-cookies))
         (handler req)))))
