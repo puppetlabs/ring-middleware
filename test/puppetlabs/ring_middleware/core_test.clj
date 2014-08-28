@@ -5,11 +5,18 @@
             [puppetlabs.trapperkeeper.app :refer [get-service]]
             [puppetlabs.ring-middleware.core :refer [wrap-proxy]]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
-            [ring.util.response :as rr]))
+            [ring.util.response :as rr]
+            [clj-http.client :as clj-client]))
 
 (defn post-target-handler
   [req]
   (if (= (:request-method req) :post)
+    {:status 200 :body (slurp (:body req))}
+    {:status 404 :body "D'oh"}))
+
+(defn delete-target-handler
+  [req]
+  (if (= (:request-method req) :delete)
     {:status 200 :body (slurp (:body req))}
     {:status 404 :body "D'oh"}))
 
@@ -80,7 +87,11 @@
        (add-ring-handler
          target-webserver#
          post-target-handler
-         "/hello/post/"))
+         "/hello/post/")
+       (add-ring-handler
+         target-webserver#
+         delete-target-handler
+         "/hello/delete/"))
        (with-app-with-config proxy-app#
          [jetty9-service]
          {:webserver ~proxy}
@@ -278,4 +289,20 @@
           (is (= (:orig-content-encoding response) "gzip")))
         (let [response (http-get "http://localhost:10000/hello-proxy")]
           (is (= (:body response) gzip-body))
-          (is (= (:orig-content-encoding response) "gzip")))))))
+          (is (= (:orig-content-encoding response) "gzip")))))
+
+    (testing "deletes with a body get proxied"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app
+         :ring-handler  proxy-target-handler}
+
+        ; use clj-http-client, which accepts a DELETE with a body
+        (let [response (clj-client/delete "http://localhost:10000/hello-proxy/delete/" {:as :stream
+                                                                                        :body "I shouldn't be here"
+                                                                                        :throw-exceptions false})]
+          (is (= (:status response) 200))
+          (is (= (slurp (:body response)) "")))))))
