@@ -11,3 +11,13 @@
   (let [prepare #(-> (update-in % [1 :expires] str)
                      (update-in [1] dissoc :domain :secure))]
     (assoc resp :cookies (into {} (map prepare (:cookies resp))))))
+
+; DELETE requests with a body are technically not allowed, and blow up our HTTP client, so filter them out
+(defn prepare-body
+  [req]
+  (if (= (:request-method req) :delete)
+    nil
+    (let [body (slurp (:body req))]
+      (if-not (empty? body)
+        body
+        nil))))
