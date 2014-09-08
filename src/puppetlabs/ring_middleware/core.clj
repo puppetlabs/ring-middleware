@@ -1,6 +1,7 @@
 (ns puppetlabs.ring-middleware.core
   (:require [ring.middleware.cookies :refer [wrap-cookies]]
             [clojure.string :refer [join split]]
+            [clojure.tools.logging :as log]
             [puppetlabs.http.client.sync :refer [request]]
             [puppetlabs.ring-middleware.common :refer [prepare-cookies]])
   (:import (java.net URI)))
@@ -22,17 +23,19 @@
                                (str (.getPath uri)
                                     (subs (:uri req) (.length proxied-path)))
                                nil
-                               nil)]
-          (-> (merge {:method (:request-method req)
-                      :url (str remote-uri "?" (:query-string req))
-                      :headers (dissoc (:headers req) "host" "content-length")
-                      :body (let [body (slurp (:body req))]
-                              (if-not (empty? body)
-                                body
-                                nil))
-                      :as :stream
-                      :force-redirects true
-                      :decompress-body false} http-opts)
-              request
-              prepare-cookies))
+                               nil)
+              response (-> (merge {:method (:request-method req)
+                                   :url (str remote-uri "?" (:query-string req))
+                                   :headers (dissoc (:headers req) "host" "content-length")
+                                   :body (let [body (slurp (:body req))]
+                                           (if-not (empty? body)
+                                             body
+                                             nil))
+                                   :as :stream
+                                   :force-redirects true
+                                   :decompress-body false} http-opts)
+                           request
+                           prepare-cookies)]
+          (log/debug "Proxying request to" (:uri req) "to remote url" (str remote-uri) ". Remote server responded with status" (:status response))
+          response)
         (handler req)))))
