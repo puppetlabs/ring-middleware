@@ -21,4 +21,5 @@
                                   [puppetlabs/trapperkeeper "0.5.0" :classifier "test" :scope "test"
                                    :exclusions [prismatic/schema clj-time]]
                                   [puppetlabs/kitchensink "0.7.2" :classifier "test" :scope "test"
-                                   :exclusions [clj-time commons-io]]]}})
+                                   :exclusions [clj-time commons-io]]
+                                  [compojure "1.1.8"]]}})
