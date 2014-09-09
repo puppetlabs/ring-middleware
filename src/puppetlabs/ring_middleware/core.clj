@@ -1,6 +1,6 @@
 (ns puppetlabs.ring-middleware.core
   (:require [ring.middleware.cookies :refer [wrap-cookies]]
-            [clojure.string :refer [join split]]
+            [clojure.string :refer [join split replace-first]]
             [clojure.tools.logging :as log]
             [puppetlabs.http.client.sync :refer [request]]
             [puppetlabs.ring-middleware.common :refer [prepare-cookies]])
@@ -9,10 +9,11 @@
 (defn wrap-proxy
   "Proxies requests to proxied-path, a local URI, to the remote URI at
   remote-uri-base, also a string."
-  [handler ^String proxied-path remote-uri-base & [http-opts]]
+  [handler proxied-path remote-uri-base & [http-opts]]
   (wrap-cookies
     (fn [req]
-      (if (.startsWith ^String (:uri req) (str proxied-path "/"))
+      (if (or (and (instance? String proxied-path) (.startsWith ^String (:uri req) (str proxied-path "/")))
+              (and (instance? java.util.regex.Pattern proxied-path) (re-matches proxied-path (:uri req))))
         ; Remove :decompress-body from the options map, as if this is
         ; ever set to true, the response returned to the client making the
         ; proxy request will be truncated
@@ -21,7 +22,7 @@
               remote-uri (URI. (.getScheme uri)
                                (.getAuthority uri)
                                (str (.getPath uri)
-                                    (subs (:uri req) (.length proxied-path)))
+                                    (replace-first (:uri req) proxied-path ""))
                                nil
                                nil)
               response (-> (merge {:method (:request-method req)

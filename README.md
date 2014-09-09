@@ -24,7 +24,8 @@ to a remote URL specified by the `remote-uri-base` argument.
 The arguments are as follows:
 
 * `handler`: A ring-handler that will be used if the provided url does not begin with the proxied-path prefix
-* `proxied-path`: The URL prefix of all requests that are to be proxied
+* `proxied-path`: The URL prefix of all requests that are to be proxied. This can be either a string or a
+   regular expression pattern.
 * `remote-uri-base`: The base URL that you want to proxy requests with the `proxied-path` prefix to
 * `http-opts`: An optional list of options for an http client. This is used by the handler returned by
   `wrap-proxy` when it makes a proxied request to a remote URI. For a list of available options, please
