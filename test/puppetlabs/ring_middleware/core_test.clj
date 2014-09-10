@@ -82,6 +82,10 @@
   (-> proxy-regex-fallthrough
       (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/hello")))
 
+(def proxy-wrapped-app-regex-alt
+  (-> proxy-regex-fallthrough
+      (wrap-proxy #"/hello-proxy" "http://localhost:9000/hello")))
+
 (defmacro with-target-and-proxy-servers
   [{:keys [target proxy proxy-handler ring-handler endpoint]} & body]
   `(with-app-with-config proxy-target-app#
@@ -329,5 +333,21 @@
           (is (= (:status response) 200))
           (is (= (:body response) "Goodbye, World! (fallthrough)")))
         (let [response (http-get "Http://localhost:10000/production/cert/foo")]
+          (is (= (:status response) 404))
+          (is (= (:body response) "Not Found (fallthrough)")))))
+
+    (testing "proxy regex matches beginning of string"
+      (with-target-and-proxy-servers
+        {:target {:host "0.0.0.0"
+                  :port 9000}
+         :proxy   {:host "0.0.0.0"
+                   :port 10000}
+         :proxy-handler proxy-wrapped-app-regex-alt
+         :ring-handler proxy-regex-response
+         :endpoint "/"}
+        (let [response (http-get "http://localhost:10000/hello-proxy")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Proxied with regex!")))
+        (let [response (http-get "http://localhost:10000/production/hello-proxy")]
           (is (= (:status response) 404))
           (is (= (:body response) "Not Found (fallthrough)")))))))
