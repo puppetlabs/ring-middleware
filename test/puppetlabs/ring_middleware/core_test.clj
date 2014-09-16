@@ -332,7 +332,7 @@
         (let [response (http-get "http://localhost:10000/goodbye/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Goodbye, World! (fallthrough)")))
-        (let [response (http-get "Http://localhost:10000/production/cert/foo")]
+        (let [response (http-get "http://localhost:10000/production/cert/foo")]
           (is (= (:status response) 404))
           (is (= (:body response) "Not Found (fallthrough)")))))
 
