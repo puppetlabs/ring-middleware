@@ -27,10 +27,9 @@
               response (-> (merge {:method (:request-method req)
                                    :url (str remote-uri "?" (:query-string req))
                                    :headers (dissoc (:headers req) "host" "content-length")
-                                   :body (let [body (slurp (:body req))]
-                                           (if-not (empty? body)
-                                             body
-                                             nil))
+                                   :body (if (contains? #{:patch :post :put} (:request-method req))
+                                           (:body req)
+                                           nil)
                                    :as :stream
                                    :force-redirects true
                                    :decompress-body false} http-opts)
