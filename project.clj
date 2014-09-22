@@ -22,4 +22,4 @@
                                    :exclusions [prismatic/schema clj-time]]
                                   [puppetlabs/kitchensink "0.7.2" :classifier "test" :scope "test"
                                    :exclusions [clj-time commons-io]]
-                                  [compojure "1.1.8" :exclusions [org.clojure/tools.macro]]]}})
+                                  [compojure "1.1.8" :exclusions [org.clojure/tools.macro ring/ring-core]]]}})

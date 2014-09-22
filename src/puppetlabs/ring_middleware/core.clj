@@ -16,7 +16,7 @@
        (wrap-cookies
          (fn [req]
              (if (or (and (string? proxied-path) (.startsWith ^String (:uri req) (str proxied-path "/")))
-                     (and (instance? java.util.regex.Pattern proxied-path) (re-matches proxied-path (:uri req))))
+                     (and (instance? java.util.regex.Pattern proxied-path) (re-find proxied-path (:uri req))))
                ; Remove :decompress-body from the options map, as if this is
                ; ever set to true, the response returned to the client making the
                ; proxy request will be truncated

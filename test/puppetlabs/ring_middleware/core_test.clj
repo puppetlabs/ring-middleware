@@ -350,4 +350,17 @@
           (is (= (:body response) "Proxied with regex!")))
         (let [response (http-get "http://localhost:10000/production/hello-proxy")]
           (is (= (:status response) 404))
-          (is (= (:body response) "Not Found (fallthrough)")))))))
+          (is (= (:body response) "Not Found (fallthrough)")))))
+
+    (testing "proxy regex does not need to match entire request uri"
+      (with-target-and-proxy-servers
+        {:target {:host "0.0.0.0"
+                  :port 9000}
+         :proxy  {:host "0.0.0.0"
+                  :port 10000}
+         :proxy-handler proxy-wrapped-app-regex-alt
+         :ring-handler  proxy-target-handler
+         :endpoint "/"}
+        (let [response (http-get "http://localhost:10000/hello-proxy/world")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Hello, World!")))))))
