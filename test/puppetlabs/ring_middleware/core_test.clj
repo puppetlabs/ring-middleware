@@ -27,14 +27,14 @@
     {:status 404 :body "D'oh"}))
 
 (defn non-proxy-target
-  [req]
+  [_]
   {:status 200 :body "Non-proxied path"})
 
 (def gzip-body
   (apply str (repeat 1000 "f")))
 
 (defn proxy-gzip-response
-  [req]
+  [_]
   (-> gzip-body
       (rr/response)
       (rr/status 200)
@@ -42,11 +42,11 @@
       (rr/charset "UTF-8")))
 
 (defn proxy-error-handler
-  [req]
+  [_]
   {:status 404 :body "D'oh"})
 
 (defn proxy-regex-response
-  [req]
+  [_]
   {:status 200 :body "Proxied with regex!"})
 
 (defroutes fallthrough-routes
@@ -364,3 +364,4 @@
         (let [response (http-get "http://localhost:10000/hello-proxy/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))))))
+
