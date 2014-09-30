@@ -32,15 +32,13 @@
         response (-> (merge {:method          (:request-method req)
                              :url             (str remote-uri "?" (:query-string req))
                              :headers         (dissoc (:headers req) "host" "content-length")
-                             :body            (let [body (slurp (:body req))]
-                                                (if-not (empty? body)
-                                                  body
-                                                  nil))
+                             :body            (not-empty (slurp (:body req)))
                              :as              :stream
                              :force-redirects true
                              :decompress-body false}
                             http-opts)
                      request
                      prepare-cookies)]
-    (log/debug "Proxying request to" (:uri req) "to remote url" (str remote-uri) ". Remote server responded with status" (:status response))
+    (log/debug "Proxying request to" (:uri req) "to remote url" (str remote-uri)
+               ". Remote server responded with status" (:status response))
     response))
