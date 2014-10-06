@@ -2,7 +2,7 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.2.6"]
                  [ring "1.3.0"]
-                 [puppetlabs/http-client "0.2.7" :exclusions [prismatic/schema commons-io clj-time]]]
+                 [puppetlabs/http-client "0.2.8" :exclusions [prismatic/schema commons-io clj-time]]]
 
   ;; Abort when version ranges or version conflicts are detected in
   ;; dependencies. Also supports :warn to simply emit warnings.
