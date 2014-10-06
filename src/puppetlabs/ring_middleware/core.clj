@@ -15,3 +15,16 @@
                      (and (instance? java.util.regex.Pattern proxied-path) (re-find proxied-path (:uri req))))
                (proxy-request req proxied-path remote-uri-base http-opts)
                (handler req))))))
+
+(defn wrap-add-cache-headers
+  "Adds cache control invalidation headers to GET and PUT requests if they are handled by the handler"
+  [handler]
+  (fn [request]
+    (let [request-method (:request-method request)
+          response       (handler request)]
+      (when-not (nil? response)
+        (if (or
+              (= request-method :get)
+              (= request-method :put))
+            (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
+            response)))))

@@ -1,21 +1,22 @@
-## ring-middleware
+# ring-middleware
 
 This project is adapted from tailrecursion's
 [ring-proxy](https://github.com/tailrecursion/ring-proxy) middleware, and is
 meant for use with the [Trapperkeeper Jetty9 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9).
 
-### Usage
+## Usage
 
-To use `ring-middleware`, include the following dependency in your project.clj file:
+
+To use `ring-middleware`, add this project as a dependency in your leiningen project file:
+
+[![Clojars Project](http://clojars.org/puppetlabs/ring-middleware/latest-version.svg)](https://clojars.org/puppetlabs/ring-middleware)
+
+## wrap-proxy
+
+This project provides a `wrap-proxy` function with the following signature:
 
 ```clj
-[puppetlabs/ring-middleware "0.1.2"]
-```
-
-This project provides a single function, `wrap-proxy`, with the following signature:
-
-```clj
-(wrap-proxy [handler proxied-path remote-uri-base & [http-opts])
+(wrap-proxy [handler proxied-path remote-uri-base & [http-opts]])
 ```
 
 This function returns a ring handler that, when given a URL with a certain prefix, proxies the request
@@ -53,3 +54,13 @@ by the redirect is relative.
 `wrap-proxy` supports SSL. To add SSL support, you can set SSL options in the `http-opts` map as you would in
 a request made with [clj-http-client](https://github.com/puppetlabs/clj-http-client). Simply set the
 `:ssl-cert`, `:ssl-key`, and `:ssl-ca-cert` options in the `http-opts` map to be paths to your .pem files.
+
+## wrap-add-cache-headers
+
+A utility middleware with the following signature:
+
+```clj
+(wrap-add-cache-headers [handler])
+```
+
+This utility function returns a ring handler that will add `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` if they are handled by the handler.
