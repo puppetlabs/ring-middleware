@@ -46,8 +46,8 @@ The following:
 ```clj
 (wrap-proxy handler #"^/hello-world" "http://localhost:9000/hello")
 ```
-would return a ring handler that proxies all requests with a URL prefix matching the regex
-#^/hello-world" to `http://localhost:9000/hello/[url-prefix]`.
+would return a ring handler that proxies all requests with a URL path matching the regex
+#^/hello-world" to `http://localhost:9000/hello/[url-path]`.
 
 ### Proxy Redirect Support
 
