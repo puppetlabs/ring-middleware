@@ -46,8 +46,8 @@
   {:status 404 :body "D'oh"})
 
 (defn proxy-regex-response
-  [_]
-  {:status 200 :body "Proxied with regex!"})
+  [req]
+  {:status 200 :body (str "Proxied to " (:uri req))})
 
 (defroutes fallthrough-routes
   (GET "/hello/world" [] "Hello, World! (fallthrough)")
@@ -325,7 +325,7 @@
          :endpoint      "/"}
         (let [response (http-get "http://localhost:10000/production/certificate/foo")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Proxied with regex!")))
+          (is (= (:body response) "Proxied to /hello/production/certificate/foo")))
         (let [response (http-get "http://localhost:10000/hello/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World! (fallthrough)")))
@@ -347,7 +347,7 @@
          :endpoint "/"}
         (let [response (http-get "http://localhost:10000/hello-proxy")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Proxied with regex!")))
+          (is (= (:body response) "Proxied to /hello/hello-proxy")))
         (let [response (http-get "http://localhost:10000/production/hello-proxy")]
           (is (= (:status response) 404))
           (is (= (:body response) "Not Found (fallthrough)")))))
@@ -359,9 +359,9 @@
          :proxy  {:host "0.0.0.0"
                   :port 10000}
          :proxy-handler proxy-wrapped-app-regex-alt
-         :ring-handler  proxy-target-handler
+         :ring-handler  proxy-regex-response
          :endpoint "/"}
         (let [response (http-get "http://localhost:10000/hello-proxy/world")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Hello, World!")))))))
+          (is (= (:body response) "Proxied to /hello/hello-proxy/world")))))))
 

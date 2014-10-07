@@ -26,7 +26,9 @@
         remote-uri (URI. (.getScheme uri)
                          (.getAuthority uri)
                          (str (.getPath uri)
-                              (replace-first (:uri req) proxied-path ""))
+                              (if (instance? java.util.regex.Pattern proxied-path)
+                                (:uri req)
+                                (replace-first (:uri req) proxied-path "")))
                          nil
                          nil)
         response (-> (merge {:method          (:request-method req)
