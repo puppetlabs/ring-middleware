@@ -25,7 +25,9 @@ The arguments are as follows:
 
 * `handler`: A ring-handler that will be used if the provided url does not begin with the proxied-path prefix
 * `proxied-path`: The URL prefix of all requests that are to be proxied. This can be either a string or a
-   regular expression pattern.
+   regular expression pattern. Note that, when this is a regular expression, the entire request URI
+   will be appended to `remote-uri-base` when the URI is being rewritten, whereas if this argument
+   is a string, the `proxied-path` will not be included.
 * `remote-uri-base`: The base URL that you want to proxy requests with the `proxied-path` prefix to
 * `http-opts`: An optional list of options for an http client. This is used by the handler returned by
   `wrap-proxy` when it makes a proxied request to a remote URI. For a list of available options, please
@@ -38,6 +40,14 @@ For example, the following:
 ```
 would return a ring handler that proxies all requests with URL prefix "/hello-world" to
 `http://localhost:9000/hello`.
+
+The following:
+
+```clj
+(wrap-proxy handler #"^/hello-world" "http://localhost:9000/hello")
+```
+would return a ring handler that proxies all requests with a URL prefix matching the regex
+#^/hello-world" to `http://localhost:9000/hello/[url-prefix]`.
 
 ### Proxy Redirect Support
 
