@@ -16,17 +16,25 @@
                      (update-in [1] dissoc :domain :secure))]
     (assoc resp :cookies (into {} (map prepare (:cookies resp))))))
 
+(defn strip-trailing-slash
+  [url]
+  (if (.endsWith url "/")
+    (.substring url 0 (- (count url) 1))
+    url))
+
 (defn proxy-request
   [req proxied-path remote-uri-base & [http-opts]]
   ; Remove :decompress-body from the options map, as if this is
   ; ever set to true, the response returned to the client making the
   ; proxy request will be truncated
   (let [http-opts (dissoc http-opts :decompress-body)
-        uri (URI. remote-uri-base)
+        uri (URI. (strip-trailing-slash remote-uri-base))
         remote-uri (URI. (.getScheme uri)
                          (.getAuthority uri)
                          (str (.getPath uri)
-                              (replace-first (:uri req) proxied-path ""))
+                              (if (instance? java.util.regex.Pattern proxied-path)
+                                (:uri req)
+                                (replace-first (:uri req) proxied-path "")))
                          nil
                          nil)
         response (-> (merge {:method          (:request-method req)

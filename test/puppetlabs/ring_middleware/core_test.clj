@@ -46,8 +46,8 @@
   {:status 404 :body "D'oh"})
 
 (defn proxy-regex-response
-  [_]
-  {:status 200 :body "Proxied with regex!"})
+  [req]
+  {:status 200 :body (str "Proxied to " (:uri req))})
 
 (defroutes fallthrough-routes
   (GET "/hello/world" [] "Hello, World! (fallthrough)")
@@ -86,8 +86,16 @@
   (-> proxy-regex-fallthrough
       (wrap-proxy #"/hello-proxy" "http://localhost:9000/hello")))
 
+(def proxy-wrapped-app-regex-no-prepend
+  (-> proxy-regex-fallthrough
+      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000")))
+
+(def proxy-wrapped-app-regex-trailing-slash
+  (-> proxy-regex-fallthrough
+      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/")))
+
 (defmacro with-target-and-proxy-servers
-  [{:keys [target proxy proxy-handler ring-handler endpoint]} & body]
+  [{:keys [target proxy proxy-handler ring-handler endpoint target-endpoint]} & body]
   `(with-app-with-config proxy-target-app#
      [jetty9-service]
      {:webserver ~target}
@@ -95,7 +103,7 @@
        (add-ring-handler
          target-webserver#
          ~ring-handler
-         "/hello")
+         ~target-endpoint)
        (add-ring-handler
          target-webserver#
          non-proxy-target
@@ -124,7 +132,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -147,7 +156,8 @@
                                 :ssl-port 10001})
          :proxy-handler proxy-wrapped-app-ssl
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "https://localhost:9001/hello/world" default-options-for-https-client)]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -164,7 +174,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app-ssl
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "https://localhost:9001/hello/world" default-options-for-https-client)]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -181,7 +192,8 @@
                                 :ssl-port 10001})
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -196,7 +208,8 @@
                         :port 10000}
         :proxy-handler proxy-wrapped-app
         :ring-handler  proxy-target-handler
-        :endpoint      "/hello-proxy"}
+        :endpoint      "/hello-proxy"
+        :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -225,7 +238,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app-no-redirect
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -241,7 +255,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app-no-post-redirect
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false
                                   :as :text})]
@@ -259,7 +274,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy/wrong-host")]
           (is (= (:status response 502))))))
 
@@ -271,7 +287,8 @@
                         :port 10000}
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy/fully-qualified"
                                  {:follow-redirects false
                                   :as :text})]
@@ -286,7 +303,8 @@
                   :port 10000}
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/different")]
           (is (= (:status response) 200))
           (is (= (:body response) "Non-proxied path")))
@@ -306,7 +324,8 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app
          :ring-handler  proxy-gzip-response
-         :endpoint      "/hello-proxy"}
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello")]
           (is (= (:body response) gzip-body))
           (is (= (:orig-content-encoding response) "gzip")))
@@ -322,10 +341,11 @@
                          :port 10000}
          :proxy-handler proxy-wrapped-app-regex
          :ring-handler  proxy-regex-response
-         :endpoint      "/"}
+         :endpoint      "/"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/production/certificate/foo")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Proxied with regex!")))
+          (is (= (:body response) "Proxied to /hello/production/certificate/foo")))
         (let [response (http-get "http://localhost:10000/hello/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World! (fallthrough)")))
@@ -344,10 +364,11 @@
                    :port 10000}
          :proxy-handler proxy-wrapped-app-regex-alt
          :ring-handler proxy-regex-response
-         :endpoint "/"}
+         :endpoint "/"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Proxied with regex!")))
+          (is (= (:body response) "Proxied to /hello/hello-proxy")))
         (let [response (http-get "http://localhost:10000/production/hello-proxy")]
           (is (= (:status response) 404))
           (is (= (:body response) "Not Found (fallthrough)")))))
@@ -359,11 +380,40 @@
          :proxy  {:host "0.0.0.0"
                   :port 10000}
          :proxy-handler proxy-wrapped-app-regex-alt
-         :ring-handler  proxy-target-handler
-         :endpoint "/"}
+         :ring-handler  proxy-regex-response
+         :endpoint "/"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy/world")]
           (is (= (:status response) 200))
-          (is (= (:body response) "Hello, World!")))))))
+          (is (= (:body response) "Proxied to /hello/hello-proxy/world")))))
+
+    (testing "proxy works with regex and no prepended path"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app-regex-no-prepend
+         :ring-handler  proxy-regex-response
+         :endpoint      "/"
+         :target-endpoint "/"}
+        (let [response (http-get "http://localhost:10000/production/certificate/foo")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Proxied to /production/certificate/foo")))))
+
+    (testing "no repeat slashes exist in rewritten uri"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app-regex-trailing-slash
+         :ring-handler  proxy-regex-response
+         :endpoint      "/"
+         :target-endpoint "/"}
+        (let [response (http-get "http://localhost:10000/production/certificate/foo")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Proxied to /production/certificate/foo")))))))
 
 (deftest test-wrap-add-cache-headers
   (let [put-request     {:request-method :put}
