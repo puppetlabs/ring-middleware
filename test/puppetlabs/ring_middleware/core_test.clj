@@ -3,7 +3,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [puppetlabs.ring-middleware.core :refer [wrap-proxy]]
+            [puppetlabs.ring-middleware.core :refer [wrap-proxy wrap-add-cache-headers]]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
             [ring.util.response :as rr]
             [compojure.core :refer :all]
@@ -365,3 +365,36 @@
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))))))
 
+(deftest test-wrap-add-cache-headers
+  (let [put-request     {:request-method :put}
+        get-request     {:request-method :get}
+        post-request    {:request-method :post}
+        delete-request  {:request-method :delete}
+        no-cache-header "private, max-age=0, no-cache"]
+    (testing "wrap-add-cache-headers ignores nil response"
+      (let [handler (constantly nil)
+            wrapped-handler (wrap-add-cache-headers handler)]
+        (is (nil? (wrapped-handler put-request)))
+        (is (nil? (wrapped-handler get-request)))
+        (is (nil? (wrapped-handler post-request)))
+        (is (nil? (wrapped-handler delete-request)))))
+    (testing "wrap-add-cache-headers observes handled response"
+      (let [handler              (constantly {})
+            wrapped-handler      (wrap-add-cache-headers handler)
+            handled-response     {:headers {"cache-control" no-cache-header}}
+            not-handled-response {}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= not-handled-response (wrapped-handler post-request)))
+        (is (= not-handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-cache-headers doesn't stomp on existing headers"
+      (let [fake-response        {:headers {:something "Hi mom"}}
+            handler              (constantly fake-response)
+            wrapped-handler      (wrap-add-cache-headers handler)
+            handled-response     {:headers {:something      "Hi mom"
+                                            "cache-control" no-cache-header}}
+            not-handled-response fake-response]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= not-handled-response (wrapped-handler post-request)))
+        (is (= not-handled-response (wrapped-handler delete-request)))))))
