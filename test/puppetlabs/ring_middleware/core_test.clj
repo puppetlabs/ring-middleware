@@ -90,6 +90,10 @@
   (-> proxy-regex-fallthrough
       (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000")))
 
+(def proxy-wrapped-app-regex-trailing-slash
+  (-> proxy-regex-fallthrough
+      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/")))
+
 (defmacro with-target-and-proxy-servers
   [{:keys [target proxy proxy-handler ring-handler endpoint target-endpoint]} & body]
   `(with-app-with-config proxy-target-app#
@@ -383,13 +387,27 @@
           (is (= (:status response) 200))
           (is (= (:body response) "Proxied to /hello/hello-proxy/world")))))
 
-    (testing "proxy works with regex"
+    (testing "proxy works with regex and no prepended path"
       (with-target-and-proxy-servers
         {:target        {:host "0.0.0.0"
                          :port 9000}
          :proxy         {:host "0.0.0.0"
                          :port 10000}
          :proxy-handler proxy-wrapped-app-regex-no-prepend
+         :ring-handler  proxy-regex-response
+         :endpoint      "/"
+         :target-endpoint "/"}
+        (let [response (http-get "http://localhost:10000/production/certificate/foo")]
+          (is (= (:status response) 200))
+          (is (= (:body response) "Proxied to /production/certificate/foo")))))
+
+    (testing "no repeat slashes exist in rewritten uri"
+      (with-target-and-proxy-servers
+        {:target        {:host "0.0.0.0"
+                         :port 9000}
+         :proxy         {:host "0.0.0.0"
+                         :port 10000}
+         :proxy-handler proxy-wrapped-app-regex-trailing-slash
          :ring-handler  proxy-regex-response
          :endpoint      "/"
          :target-endpoint "/"}
