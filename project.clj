@@ -1,7 +1,8 @@
 (defproject puppetlabs/ring-middleware "0.2.1-SNAPSHOT"
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.2.6"]
-                 [ring "1.3.0"]
+                 [ring "1.3.0" :exclusions [org.clojure/java.classpath]]
+                 [puppetlabs/ssl-utils "0.7.0" :exclusions [clj-time]]
                  [puppetlabs/http-client "0.2.8" :exclusions [prismatic/schema commons-io clj-time]]]
 
   ;; Abort when version ranges or version conflicts are detected in

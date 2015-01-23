@@ -1,9 +1,10 @@
 (ns puppetlabs.ring-middleware.core-test
   (:require [clojure.test :refer :all]
+            [puppetlabs.ssl-utils.core :refer [pem->cert]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [puppetlabs.ring-middleware.core :refer [wrap-proxy wrap-add-cache-headers]]
+            [puppetlabs.ring-middleware.core :refer [wrap-proxy wrap-add-cache-headers] :as core]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
             [ring.util.response :as rr]
             [compojure.core :refer :all]
@@ -448,3 +449,17 @@
         (is (= handled-response (wrapped-handler put-request)))
         (is (= not-handled-response (wrapped-handler post-request)))
         (is (= not-handled-response (wrapped-handler delete-request)))))))
+
+(deftest test-wrap-with-cn
+  (testing "When extracting a CN from a cert"
+    (testing "and there is no cert"
+      (let [mw-fn (core/wrap-with-certificate-cn identity)
+            post-req (mw-fn {})]
+        (testing "ssl-client-cn is set to nil"
+          (is (= post-req {:ssl-client-cn nil})))))
+
+    (testing "and there is a cert"
+      (let [mw-fn (core/wrap-with-certificate-cn identity)
+            post-req (mw-fn {:ssl-client-cert (pem->cert "dev-resources/ssl/cert.pem")})]
+        (testing "ssl-client-cn is set properly"
+          (is (= (:ssl-client-cn post-req) "localhost")))))))

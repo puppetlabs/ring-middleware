@@ -1,5 +1,6 @@
 (ns puppetlabs.ring-middleware.core
   (:require [ring.middleware.cookies :refer [wrap-cookies]]
+            [puppetlabs.ssl-utils.core :refer [get-cn-from-x509-certificate]]
             [puppetlabs.ring-middleware.common :refer [proxy-request]]))
 
 (defn wrap-proxy
@@ -28,3 +29,15 @@
               (= request-method :put))
             (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
             response)))))
+
+(defn wrap-with-certificate-cn
+  "Ring middleware that will annotate the request with an
+  :ssl-client-cn key representing the CN contained in the client
+  certificate of the request. If no client certificate is present,
+  the key's value is set to nil."
+  [handler]
+  (fn [{:keys [ssl-client-cert] :as req}]
+    (let [cn  (some-> ssl-client-cert
+                      get-cn-from-x509-certificate)
+          req (assoc req :ssl-client-cn cn)]
+      (handler req))))
