@@ -30,6 +30,14 @@
             (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
             response)))))
 
+(defn wrap-add-x-frame-options-deny
+  "Adds 'X-Frame-Options: DENY' headers to requests if they are handled by the handler"
+  [handler]
+  (fn [request]
+    (let [response (handler request)]
+      (when-not (nil? response)
+        (assoc-in response [:headers "X-Frame-Options"] "DENY")))))
+
 (defn wrap-with-certificate-cn
   "Ring middleware that will annotate the request with an
   :ssl-client-cn key representing the CN contained in the client
