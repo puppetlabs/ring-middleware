@@ -48,7 +48,7 @@ The following:
 (wrap-proxy handler #"^/hello-world" "http://localhost:9000/hello")
 ```
 would return a ring handler that proxies all requests with a URL path matching the regex
-#^/hello-world" to `http://localhost:9000/hello/[url-path]`.
+`#^/hello-world"` to `http://localhost:9000/hello/[url-path]`.
 
 ### Proxy Redirect Support
 
@@ -65,6 +65,13 @@ by the redirect is relative.
 a request made with [clj-http-client](https://github.com/puppetlabs/clj-http-client). Simply set the
 `:ssl-cert`, `:ssl-key`, and `:ssl-ca-cert` options in the `http-opts` map to be paths to your .pem files.
 
+## wrap-with-certificate-cn
+
+This middleware adds a `:ssl-client-cn` key to the request map if a
+`:ssl-client-cert` is present. If no client certificate is present,
+  the key's value is set to nil. This makes for easier certificate
+whitelisting (using the cert whitelisting function from pl/kitchensink)
+
 ## wrap-add-cache-headers
 
 A utility middleware with the following signature:
@@ -73,4 +80,14 @@ A utility middleware with the following signature:
 (wrap-add-cache-headers [handler])
 ```
 
-This utility function returns a ring handler that will add `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` if they are handled by the handler.
+This middleware returns a ring handler that will add `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` requests if they are handled by the handler.
+
+## wrap-add-x-frame-options-deny
+
+A utility middleware with the following signature:
+
+```clj
+(wrap-add-x-frame-options-deny [handler])
+```
+
+This middleware returns a ring handler that will add `X-Frame-Options: DENY` headers to requests if they are handled by the handler.

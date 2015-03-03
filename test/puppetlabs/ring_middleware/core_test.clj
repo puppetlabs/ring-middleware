@@ -4,7 +4,7 @@
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [puppetlabs.ring-middleware.core :refer [wrap-proxy wrap-add-cache-headers] :as core]
+            [puppetlabs.ring-middleware.core :as core]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
             [ring.util.response :as rr]
             [compojure.core :refer :all]
@@ -60,40 +60,40 @@
 
 (def proxy-wrapped-app
   (-> proxy-error-handler
-      (wrap-proxy "/hello-proxy" "http://localhost:9000/hello")))
+      (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello")))
 
 (def proxy-wrapped-app-ssl
   (-> proxy-error-handler
-      (wrap-proxy "/hello-proxy" "https://localhost:9001/hello"
+      (core/wrap-proxy "/hello-proxy" "https://localhost:9001/hello"
                   {:ssl-cert "./dev-resources/config/jetty/ssl/certs/localhost.pem"
                    :ssl-key  "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
                    :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"})))
 
 (def proxy-wrapped-app-no-redirect
   (-> proxy-error-handler
-      (wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
+      (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
                   {:follow-redirects false})))
 
 (def proxy-wrapped-app-no-post-redirect
   (-> proxy-error-handler
-      (wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
+      (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
                   {:force-redirects false})))
 
 (def proxy-wrapped-app-regex
   (-> proxy-regex-fallthrough
-      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/hello")))
+      (core/wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/hello")))
 
 (def proxy-wrapped-app-regex-alt
   (-> proxy-regex-fallthrough
-      (wrap-proxy #"/hello-proxy" "http://localhost:9000/hello")))
+      (core/wrap-proxy #"/hello-proxy" "http://localhost:9000/hello")))
 
 (def proxy-wrapped-app-regex-no-prepend
   (-> proxy-regex-fallthrough
-      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000")))
+      (core/wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000")))
 
 (def proxy-wrapped-app-regex-trailing-slash
   (-> proxy-regex-fallthrough
-      (wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/")))
+      (core/wrap-proxy #"^/([^/]+/certificate.*)$" "http://localhost:9000/")))
 
 (defmacro with-target-and-proxy-servers
   [{:keys [target proxy proxy-handler ring-handler endpoint target-endpoint]} & body]
@@ -424,14 +424,14 @@
         no-cache-header "private, max-age=0, no-cache"]
     (testing "wrap-add-cache-headers ignores nil response"
       (let [handler (constantly nil)
-            wrapped-handler (wrap-add-cache-headers handler)]
+            wrapped-handler (core/wrap-add-cache-headers handler)]
         (is (nil? (wrapped-handler put-request)))
         (is (nil? (wrapped-handler get-request)))
         (is (nil? (wrapped-handler post-request)))
         (is (nil? (wrapped-handler delete-request)))))
     (testing "wrap-add-cache-headers observes handled response"
       (let [handler              (constantly {})
-            wrapped-handler      (wrap-add-cache-headers handler)
+            wrapped-handler      (core/wrap-add-cache-headers handler)
             handled-response     {:headers {"cache-control" no-cache-header}}
             not-handled-response {}]
         (is (= handled-response (wrapped-handler get-request)))
@@ -441,7 +441,7 @@
     (testing "wrap-add-cache-headers doesn't stomp on existing headers"
       (let [fake-response        {:headers {:something "Hi mom"}}
             handler              (constantly fake-response)
-            wrapped-handler      (wrap-add-cache-headers handler)
+            wrapped-handler      (core/wrap-add-cache-headers handler)
             handled-response     {:headers {:something      "Hi mom"
                                             "cache-control" no-cache-header}}
             not-handled-response fake-response]
@@ -463,3 +463,36 @@
             post-req (mw-fn {:ssl-client-cert (pem->cert "dev-resources/ssl/cert.pem")})]
         (testing "ssl-client-cn is set properly"
           (is (= (:ssl-client-cn post-req) "localhost")))))))
+
+(deftest test-wrap-add-x-frame-options-deny
+  (let [get-request    {:request-method :get}
+        put-request    {:request-method :put}
+        post-request   {:request-method :post}
+        delete-request {:request-method :delete}
+        x-frame-header "DENY"]
+    (testing "wrap-add-x-frame-options-deny ignores nil response"
+      (let [handler         (constantly nil)
+            wrapped-handler (core/wrap-add-x-frame-options-deny handler)]
+        (is (nil? (wrapped-handler get-request)))
+        (is (nil? (wrapped-handler put-request)))
+        (is (nil? (wrapped-handler post-request)))
+        (is (nil? (wrapped-handler delete-request)))))
+    (testing "wrap-add-x-frame-options-deny observes handled response"
+      (let [handler              (constantly {})
+            wrapped-handler      (core/wrap-add-x-frame-options-deny handler)
+            handled-response     {:headers {"X-Frame-Options" x-frame-header}}
+            not-handled-response {}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-x-frame-options-deny doesn't stomp on existing headers"
+      (let [fake-response        {:headers {:something "Hi mom"}}
+            handler              (constantly fake-response)
+            wrapped-handler      (core/wrap-add-x-frame-options-deny handler)
+            handled-response     {:headers {:something      "Hi mom"
+                                            "X-Frame-Options" x-frame-header}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))))
