@@ -80,7 +80,7 @@ A utility middleware with the following signature:
 (wrap-add-cache-headers [handler])
 ```
 
-This middleware returns a ring handler that will add `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` requests if they are handled by the handler.
+This middleware adds `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` requests if they are handled by the handler.
 
 ## wrap-add-x-frame-options-deny
 
@@ -90,4 +90,4 @@ A utility middleware with the following signature:
 (wrap-add-x-frame-options-deny [handler])
 ```
 
-This middleware returns a ring handler that will add `X-Frame-Options: DENY` headers to requests if they are handled by the handler.
+This middleware adds `X-Frame-Options: DENY` headers to requests if they are handled by the handler.

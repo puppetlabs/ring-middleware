@@ -35,7 +35,7 @@
   [handler]
   (fn [request]
     (let [response (handler request)]
-      (when-not (nil? response)
+      (when response
         (assoc-in response [:headers "X-Frame-Options"] "DENY")))))
 
 (defn wrap-with-certificate-cn
