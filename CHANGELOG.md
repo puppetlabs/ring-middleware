@@ -1,3 +1,8 @@
+# 0.2.1
+* Add wrap-with-certificate-cn middleware that adds a `:ssl-client-cn` key
+  to the request map if a `:ssl-client-cert` is present.
+* Add wrap-with-x-frame-options-deny middleware that adds `X-Frame-Options: DENY`
+
 ## 0.2.0
 * Modify behavior of regex support in the wrap-proxy function.
   Now, when a regex is given for the `proxied-path` argument,
