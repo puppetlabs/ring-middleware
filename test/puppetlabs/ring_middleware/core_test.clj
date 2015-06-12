@@ -15,11 +15,12 @@
   [req]
   (if (= (:request-method req) :post)
     {:status 200 :body (slurp (:body req))}
-    {:status 404 :body "D'oh"}))
+    {:status 404 :body "Z'oh"}))
 
 (defn proxy-target-handler
   [req]
   (condp = (:uri req)
+    "/hello"                 {:status 302 :headers {"Location" "/hello/world"}}
     "/hello/"                {:status 302 :headers {"Location" "/hello/world"}}
     "/hello/world"           {:status 200 :body "Hello, World!"}
     "/hello/wrong-host"      {:status 302 :headers {"Location" "http://localhost:4/fake"}}
@@ -44,7 +45,7 @@
 
 (defn proxy-error-handler
   [_]
-  {:status 404 :body "D'oh"})
+  {:status 404 :body "N'oh"})
 
 (defn proxy-regex-response
   [req]
@@ -246,7 +247,7 @@
           (is (= (:body response) "Hello, World!")))
         (let [response (http-get "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false})]
-          (is (= (:status response 302))))))
+          (is (= (:status response) 302)))))
 
     (testing "proxy redirect fails on POST if :force-redirects set to false"
       (with-target-and-proxy-servers
@@ -265,7 +266,7 @@
           (is (= (:body response) "Hello, World!")))
         (let [response (http-post "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false})]
-          (is (= (:status response 302))))))
+          (is (= (:status response) 302)))))
 
     (testing "proxy redirect to non-target host fails"
       (with-target-and-proxy-servers
@@ -278,7 +279,7 @@
          :endpoint      "/hello-proxy"
          :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:10000/hello-proxy/wrong-host")]
-          (is (= (:status response 502))))))
+          (is (= (:status response) 500)))))
 
     (testing "redirect test with fully qualified url, correct host, and proxied path"
       (with-target-and-proxy-servers
@@ -328,11 +329,11 @@
          :endpoint      "/hello-proxy"
          :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello")]
-          (is (= (:body response) gzip-body))
-          (is (= (:orig-content-encoding response) "gzip")))
-        (let [response (http-get "http://localhost:10000/hello-proxy")]
-          (is (= (:body response) gzip-body))
-          (is (= (:orig-content-encoding response) "gzip")))))
+          (is (= gzip-body (:body response)))
+          (is (= "gzip" (:orig-content-encoding response))))
+        (let [response (http-get "http://localhost:10000/hello-proxy/")]
+          (is (= gzip-body (:body response)))
+          (is (= "gzip" (:orig-content-encoding response))))))
 
     (testing "proxy works with regex"
       (with-target-and-proxy-servers

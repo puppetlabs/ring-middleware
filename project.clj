@@ -2,8 +2,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/tools.logging "0.2.6"]
                  [ring "1.3.0" :exclusions [org.clojure/java.classpath]]
-                 [puppetlabs/ssl-utils "0.7.0" :exclusions [clj-time]]
-                 [puppetlabs/http-client "0.2.8" :exclusions [prismatic/schema commons-io clj-time]]]
+                 [puppetlabs/ssl-utils "0.8.0" :exclusions [clj-time]]
+                 [puppetlabs/http-client "0.4.4" :exclusions [prismatic/schema commons-io clj-time]]]
 
   ;; Abort when version ranges or version conflicts are detected in
   ;; dependencies. Also supports :warn to simply emit warnings.
@@ -18,9 +18,10 @@
                                      :sign-releases false}]
                         ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
 
-  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper-webserver-jetty9 "0.7.1"]
-                                  [puppetlabs/trapperkeeper "0.5.0" :classifier "test" :scope "test"
+  :profiles {:dev {:dependencies [[puppetlabs/trapperkeeper-webserver-jetty9 "1.3.1"
+                                   :exclusions [clj-time]]
+                                  [puppetlabs/trapperkeeper "1.1.1" :classifier "test" :scope "test"
                                    :exclusions [prismatic/schema clj-time]]
-                                  [puppetlabs/kitchensink "0.7.2" :classifier "test" :scope "test"
+                                  [puppetlabs/kitchensink "1.1.0" :classifier "test" :scope "test"
                                    :exclusions [clj-time commons-io]]
-                                  [compojure "1.1.8" :exclusions [org.clojure/tools.macro ring/ring-core]]]}})
+                                  [compojure "1.3.4" :exclusions [org.clojure/tools.macro ring/ring-core]]]}})
