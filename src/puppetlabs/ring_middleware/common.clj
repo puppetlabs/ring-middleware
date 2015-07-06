@@ -42,7 +42,8 @@
                              :headers         (dissoc (:headers req) "host" "content-length")
                              :body            (not-empty (slurp (:body req)))
                              :as              :stream
-                             :force-redirects true
+                             :force-redirects false
+                             :follow-redirects false
                              :decompress-body false}
                             http-opts)
                      request

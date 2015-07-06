@@ -63,6 +63,12 @@
   (-> proxy-error-handler
       (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello")))
 
+(def proxy-wrapped-app-redirects
+  (-> proxy-error-handler
+    (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
+                {:force-redirects true
+                 :follow-redirects true})))
+
 (def proxy-wrapped-app-ssl
   (-> proxy-error-handler
       (core/wrap-proxy "/hello-proxy" "https://localhost:9001/hello"
@@ -70,15 +76,11 @@
                    :ssl-key  "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
                    :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"})))
 
-(def proxy-wrapped-app-no-redirect
+(def proxy-wrapped-app-post-redirect
   (-> proxy-error-handler
       (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
-                  {:follow-redirects false})))
-
-(def proxy-wrapped-app-no-post-redirect
-  (-> proxy-error-handler
-      (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
-                  {:force-redirects false})))
+                  {:force-redirects true
+                   :follow-redirects true})))
 
 (def proxy-wrapped-app-regex
   (-> proxy-regex-fallthrough
@@ -221,41 +223,22 @@
         (let [response (http-get "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false
                                   :as :text})]
-          (is (= (:status response) 200))
-          (is (= (:body response) "Hello, World!")))
+          (is (= (:status response) 302)))
         (let [response (http-post "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false
                                   :as :text})]
-          (is (= (:status response) 200))
-          (is (= (:body response) "Hello, World!")))
+          (is (= (:status response) 302)))
         (let [response (http-get "http://localhost:10000/hello-proxy/world")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))))
 
-    (testing "proxy redirect fails if :follow-redirects set to false"
+    (testing "proxy redirect fails on POST unless :force-redirects set true"
       (with-target-and-proxy-servers
         {:target        {:host "0.0.0.0"
                          :port 9000}
          :proxy         {:host "0.0.0.0"
                          :port 10000}
-         :proxy-handler proxy-wrapped-app-no-redirect
-         :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"
-         :target-endpoint "/hello"}
-        (let [response (http-get "http://localhost:9000/hello")]
-          (is (= (:status response) 200))
-          (is (= (:body response) "Hello, World!")))
-        (let [response (http-get "http://localhost:10000/hello-proxy/"
-                                 {:follow-redirects false})]
-          (is (= (:status response) 302)))))
-
-    (testing "proxy redirect fails on POST if :force-redirects set to false"
-      (with-target-and-proxy-servers
-        {:target        {:host "0.0.0.0"
-                         :port 9000}
-         :proxy         {:host "0.0.0.0"
-                         :port 10000}
-         :proxy-handler proxy-wrapped-app-no-post-redirect
+         :proxy-handler proxy-wrapped-app-post-redirect
          :ring-handler  proxy-target-handler
          :endpoint      "/hello-proxy"
          :target-endpoint "/hello"}
@@ -266,20 +249,7 @@
           (is (= (:body response) "Hello, World!")))
         (let [response (http-post "http://localhost:10000/hello-proxy/"
                                  {:follow-redirects false})]
-          (is (= (:status response) 302)))))
-
-    (testing "proxy redirect to non-target host fails"
-      (with-target-and-proxy-servers
-        {:target        {:host "0.0.0.0"
-                         :port 9000}
-         :proxy         {:host "0.0.0.0"
-                         :port 10000}
-         :proxy-handler proxy-wrapped-app
-         :ring-handler  proxy-target-handler
-         :endpoint      "/hello-proxy"
-         :target-endpoint "/hello"}
-        (let [response (http-get "http://localhost:10000/hello-proxy/wrong-host")]
-          (is (= (:status response) 500)))))
+          (is (= (:status response) 200)))))
 
     (testing "redirect test with fully qualified url, correct host, and proxied path"
       (with-target-and-proxy-servers
@@ -287,7 +257,7 @@
                         :port 9000}
          :proxy        {:host "0.0.0.0"
                         :port 10000}
-         :proxy-handler proxy-wrapped-app
+         :proxy-handler proxy-wrapped-app-redirects
          :ring-handler  proxy-target-handler
          :endpoint      "/hello-proxy"
          :target-endpoint "/hello"}
@@ -303,7 +273,7 @@
                   :port 9000}
          :proxy  {:host "0.0.0.0"
                   :port 10000}
-         :proxy-handler proxy-wrapped-app
+         :proxy-handler proxy-wrapped-app-redirects
          :ring-handler  proxy-target-handler
          :endpoint      "/hello-proxy"
          :target-endpoint "/hello"}
