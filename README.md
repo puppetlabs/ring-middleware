@@ -91,3 +91,8 @@ A utility middleware with the following signature:
 ```
 
 This middleware adds `X-Frame-Options: DENY` headers to requests if they are handled by the handler.
+
+## Support
+
+Please log tickets and issues at our [Trapperkeeper Issue Tracker](https://tickets.puppetlabs.com/browse/TK).
+In addition there is a #trapperkeeper channel on Freenode.
