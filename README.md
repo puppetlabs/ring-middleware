@@ -1,5 +1,7 @@
 # ring-middleware
 
+[![Build Status](https://travis-ci.org/puppetlabs/ring-middleware.png?branch=master)](https://travis-ci.org/puppetlabs/ring-middleware)
+
 This project is adapted from tailrecursion's
 [ring-proxy](https://github.com/tailrecursion/ring-proxy) middleware, and is
 meant for use with the [Trapperkeeper Jetty9 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9).
