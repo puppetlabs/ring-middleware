@@ -1,20 +1,21 @@
 (ns puppetlabs.ring-middleware.core
-  (:require [ring.middleware.cookies :refer [wrap-cookies]]
-            [puppetlabs.ssl-utils.core :refer [get-cn-from-x509-certificate]]
-            [puppetlabs.ring-middleware.common :refer [proxy-request]]))
+  (:require [ring.middleware.cookies :as cookies]
+            [puppetlabs.ssl-utils.core :as ssl-utils]
+            [puppetlabs.ring-middleware.common :as common])
+  (:import (java.util.regex Pattern)))
 
 (defn wrap-proxy
   "Proxies requests to proxied-path, a local URI, to the remote URI at
   remote-uri-base, also a string."
   [handler proxied-path remote-uri-base & [http-opts]]
-  (let [proxied-path (if (instance? java.util.regex.Pattern proxied-path)
+  (let [proxied-path (if (instance? Pattern proxied-path)
                        (re-pattern (str "^" (.pattern proxied-path)))
                        proxied-path)]
-       (wrap-cookies
+       (cookies/wrap-cookies
          (fn [req]
              (if (or (and (string? proxied-path) (.startsWith ^String (:uri req) (str proxied-path "/")))
-                     (and (instance? java.util.regex.Pattern proxied-path) (re-find proxied-path (:uri req))))
-               (proxy-request req proxied-path remote-uri-base http-opts)
+                     (and (instance? Pattern proxied-path) (re-find proxied-path (:uri req))))
+               (common/proxy-request req proxied-path remote-uri-base http-opts)
                (handler req))))))
 
 (defn wrap-add-cache-headers
@@ -46,6 +47,6 @@
   [handler]
   (fn [{:keys [ssl-client-cert] :as req}]
     (let [cn  (some-> ssl-client-cert
-                      get-cn-from-x509-certificate)
+                      ssl-utils/get-cn-from-x509-certificate)
           req (assoc req :ssl-client-cn cn)]
       (handler req))))
