@@ -1,15 +1,16 @@
 (ns puppetlabs.ring-middleware.core-test
-  (:require [clojure.test :refer :all]
+  (:require [cheshire.core :as json]
+            [clojure.test :refer :all]
+            [compojure.core :refer :all]
+            [compojure.handler :as handler]
+            [compojure.route :as route]
+            [puppetlabs.ring-middleware.core :as core]
+            [puppetlabs.ring-middleware.testutils.common :refer :all]
             [puppetlabs.ssl-utils.core :refer [pem->cert]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
             [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [puppetlabs.ring-middleware.core :as core]
-            [puppetlabs.ring-middleware.testutils.common :refer :all]
-            [ring.util.response :as rr]
-            [compojure.core :refer :all]
-            [compojure.handler :as handler]
-            [compojure.route :as route]))
+            [ring.util.response :as rr]))
 
 (defn post-target-handler
   [req]
@@ -463,3 +464,14 @@
         (is (= handled-response (wrapped-handler put-request)))
         (is (= handled-response (wrapped-handler post-request)))
         (is (= handled-response (wrapped-handler delete-request)))))))
+
+(deftest json-response-test
+  (testing "json response"
+    (let [source {"key1" "val1", "key2" "val2"}
+          response (core/json-response 200 source)]
+      (testing "has 200 status code"
+        (is (= 200 (:status response))))
+      (testing "has json content-type"
+        (is (re-matches #"application/json.*" (get-in response [:headers "Content-Type"]))))
+      (testing "is properly converted to a json string"
+        (is (= (json/parse-string (:body response)) source))))))

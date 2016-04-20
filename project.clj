@@ -11,7 +11,6 @@
 
                  [cheshire "5.6.1"]
                  [org.clojure/tools.logging "0.3.1"]
-                 [ring "1.4.0" :exclusions [org.clojure/java.classpath]]
                  [prismatic/schema "1.1.0"]
 
                  [puppetlabs/http-client "0.5.0"]
@@ -32,7 +31,6 @@
                                      :password :env/clojars_jenkins_password
                                      :sign-releases false}]
                         ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
-
 
   :profiles {:dev {:dependencies [
                                   ;; begin version conflict resolution dependencies
