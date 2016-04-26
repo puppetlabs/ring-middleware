@@ -2,9 +2,9 @@
 
 [![Build Status](https://travis-ci.org/puppetlabs/ring-middleware.png?branch=master)](https://travis-ci.org/puppetlabs/ring-middleware)
 
-This project is adapted from tailrecursion's
+This project was originally adapted from tailrecursion's
 [ring-proxy](https://github.com/tailrecursion/ring-proxy) middleware, and is
-meant for use with the [Trapperkeeper Jetty9 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9).
+meant for use with the [Trapperkeeper Jetty9 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9).  It also contains common ring middleware between Puppet projects and helpers to be used with the middleware.
 
 ## Usage
 
@@ -13,12 +13,41 @@ To use `ring-middleware`, add this project as a dependency in your leiningen pro
 
 [![Clojars Project](http://clojars.org/puppetlabs/ring-middleware/latest-version.svg)](https://clojars.org/puppetlabs/ring-middleware)
 
-## wrap-proxy
+## Schemas
 
-This project provides a `wrap-proxy` function with the following signature:
+  * `ResponseType` -- one of the two supported response types (`:json`, `:plain`) returned by many middleware.
 
+
+## Non-Middleware Helpers
+### json-response
 ```clj
-(wrap-proxy [handler proxied-path remote-uri-base & [http-opts]])
+(json-response status body)
+```
+Creates a basic ring response with `:status` of `status` and a `:body` of `body` serialized to json.
+
+### plain-response
+```clj
+(plain-response status body)
+```
+Creates a basic ring response with `:status` of `status` and a `:body` of `body` set to UTF-8 plain text.
+
+
+## Middleware
+### wrap-request-logging
+```clj
+(wrap-request-logging handler)
+```
+Logs the `:request-method` and `:uri` at debug level, the full request at trace.  At the trace level, attempts to remove sensitive auth information and replace client certificate with the client's common name.
+
+### wrap-response-logging
+```clj
+(wrap-response-logging handler)
+```
+Logs the response at the trace log level.
+
+### wrap-proxy
+```clj
+(wrap-proxy handler proxied-path remote-uri-base & [http-opts])
 ```
 
 This function returns a ring handler that, when given a URL with a certain prefix, proxies the request
@@ -52,7 +81,7 @@ The following:
 would return a ring handler that proxies all requests with a URL path matching the regex
 `#^/hello-world"` to `http://localhost:9000/hello/[url-path]`.
 
-### Proxy Redirect Support
+#### Proxy Redirect Support
 
 By default, all proxy requests using `wrap-proxy` will follow any redirects, including on POST and PUT
 requests. To allow redirects but restrict their use on POST and PUT requests, set the `:force-redirects`
@@ -61,38 +90,111 @@ option to `false` in the `http-opts` map. To disable redirect following on proxy
 is disabled, you may have to disable it on the client making the proxy request as well if the location returned
 by the redirect is relative.
 
-### SSL Support
+#### SSL Support
 
 `wrap-proxy` supports SSL. To add SSL support, you can set SSL options in the `http-opts` map as you would in
 a request made with [clj-http-client](https://github.com/puppetlabs/clj-http-client). Simply set the
 `:ssl-cert`, `:ssl-key`, and `:ssl-ca-cert` options in the `http-opts` map to be paths to your .pem files.
 
-## wrap-with-certificate-cn
+### wrap-with-certificate-cn
 
 This middleware adds a `:ssl-client-cn` key to the request map if a
 `:ssl-client-cert` is present. If no client certificate is present,
   the key's value is set to nil. This makes for easier certificate
 whitelisting (using the cert whitelisting function from pl/kitchensink)
 
-## wrap-add-cache-headers
+### wrap-add-cache-headers
 
 A utility middleware with the following signature:
 
 ```clj
-(wrap-add-cache-headers [handler])
+(wrap-add-cache-headers handler)
 ```
 
 This middleware adds `cache-control` headers ("private, max-age=0, no-cache") to `GET` and `PUT` requests if they are handled by the handler.
 
-## wrap-add-x-frame-options-deny
+### wrap-add-x-frame-options-deny
 
 A utility middleware with the following signature:
 
 ```clj
-(wrap-add-x-frame-options-deny [handler])
+(wrap-add-x-frame-options-deny handler)
 ```
 
 This middleware adds `X-Frame-Options: DENY` headers to requests if they are handled by the handler.
+
+### wrap-data-errors
+```clj
+(wrap-data-errors handler)
+```
+Always returns a status code of 400 to the client and logs the error message at the "error" log level.
+Catches and processes any exceptions thrown via `slingshot/throw+` with a `:type` of one of:
+  * `:request-data-invalid`
+  * `:user-data-invalid`
+  * `:service-status-version-not-found`
+
+Returns a basic ring response map with the `:body` set to the JSON serialized representation of the exception thrown wrapped in a map and accessible by the "error" key.
+
+Example return body:
+```json
+{
+  "error": {
+    "type": "user-data-invalid",
+    "message": "Error Message From Thrower"
+  }
+}
+```
+
+Returns valid [`ResponseType`](#schemas)s, eg:
+```clj
+(wrap-data-errors handler :plain)
+```
+
+### wrap-schema-errors
+```clj
+(wrap-schema-errors handler)
+```
+Always returns a status code of 500 to the client and logs an message containing the schema error, expected value, and exception type at the "error" log level.
+
+Returns a basic ring response map with the `:body` as the JSON serialized representation of helpful exception information wrapped in a map and accessible by the "error" key.  Always returns an error type of "application-error".
+
+Example return body:
+```json
+{
+  "error": {
+    "type": "application-error",
+    "message": "Something unexpected happened: {:error ... :value ... :type ...}"
+  }
+}
+```
+
+Returns valid [`ResponseType`](#schemas)s, eg:
+```clj
+(wrap-schema-errors handler :plain)
+```
+
+### wrap-uncaught-errors
+```clj
+(wrap-uncaught-errors handler)
+```
+Always returns a status code of 500 to the client and logs a message with the serialized Exception at the "error" log level.
+
+Returns a basic ring response map with the `:body` set as the JSON serialized representation of helpful exception information wrapped in a map and accessible by the "error" key.  Always returns an error type of "application-error".
+
+Example return body:
+```json
+{
+  "error": {
+    "type": "application-error",
+    "message": "Internal Server Error: <serialized Exception>"
+  }
+}
+```
+
+Returns valid [`ResponseType`](#schemas)s, eg:
+```clj
+(wrap-uncaught-errors handler :plain)
+```
 
 ## Support
 
