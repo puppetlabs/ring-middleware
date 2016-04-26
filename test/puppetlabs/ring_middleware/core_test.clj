@@ -7,10 +7,38 @@
             [puppetlabs.ring-middleware.core :as core]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
             [puppetlabs.ssl-utils.core :refer [pem->cert]]
+            [puppetlabs.ssl-utils.simple :as ssl-simple]
+            [puppetlabs.trapperkeeper.app :refer [get-service]]
             [puppetlabs.trapperkeeper.services.webserver.jetty9-service :refer :all]
             [puppetlabs.trapperkeeper.testutils.bootstrap :refer [with-app-with-config]]
-            [puppetlabs.trapperkeeper.app :refer [get-service]]
-            [ring.util.response :as rr]))
+            [puppetlabs.trapperkeeper.testutils.logging :as logutils]
+            [ring.util.response :as rr]
+            [schema.core :as schema]
+            [slingshot.slingshot :as slingshot]))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Testing Helpers
+
+
+(def WackSchema
+  [schema/Str])
+
+(schema/defn ^:always-validate cause-schema-error
+  [request :- WackSchema]
+  (throw (IllegalStateException. "The test should have never gotten here...")))
+
+(defn throwing-handler
+  [atype msg]
+  (fn [_] (slingshot/throw+ {:type atype :message msg})))
+
+(defn basic-request
+  ([] (basic-request "foo-agent" :get "https://example.com"))
+  ([subject method uri]
+   {:request-method method
+    :uri uri
+    :ssl-client-cert (:cert (ssl-simple/gen-self-signed-cert subject 1))
+    :authorization {:certificate "foo"}}))
 
 (defn post-target-handler
   [req]
@@ -117,6 +145,48 @@
          (let [proxy-webserver# (get-service proxy-app# :WebserverService)]
            (add-ring-handler proxy-webserver# ~proxy-handler ~endpoint))
          ~@body)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Core Helpers
+
+(deftest json-response-test
+  (testing "json response"
+    (let [source {:key 1}
+          response (core/json-response 200 source)]
+      (testing "has 200 status code"
+        (is (= 200 (:status response))))
+      (testing "has json content-type"
+        (is (re-matches #"application/json.*" (get-in response [:headers "Content-Type"]))))
+      (testing "is properly converted to a json string"
+        (is (= 1 ((json/parse-string (:body response)) "key")))))))
+
+(deftest plain-response-test
+  (testing "json response"
+    (let [message "Response message"
+          response (core/plain-response 200 message)]
+      (testing "has 200 status code"
+        (is (= 200 (:status response))))
+      (testing "has plain content-type"
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
+
+
+(deftest sanitize-client-cert-test
+  (testing "sanitize-client-cert"
+    (let [subject "foo-client"
+          cert (:cert (ssl-simple/gen-self-signed-cert subject 1))
+          request {:ssl-client-cert cert :authorization {:certificate "stuff"}}
+          response (core/sanitize-client-cert request)]
+      (testing "adds the CN at :ssl-client-cert-cn"
+        (is (= subject (response :ssl-client-cert-cn))))
+      (testing "removes :ssl-client-cert key from response"
+        (is (nil? (response :ssl-client-cert))))
+      (testing "remove tk-auth cert info"
+        (is (nil? (get-in response [:authorization :certificate])))))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Core Middleware
 
 (deftest test-proxy
   (let [common-ssl-config {:ssl-cert    "./dev-resources/config/jetty/ssl/certs/localhost.pem"
@@ -465,13 +535,76 @@
         (is (= handled-response (wrapped-handler post-request)))
         (is (= handled-response (wrapped-handler delete-request)))))))
 
-(deftest json-response-test
-  (testing "json response"
-    (let [source {"key1" "val1", "key2" "val2"}
-          response (core/json-response 200 source)]
-      (testing "has 200 status code"
-        (is (= 200 (:status response))))
-      (testing "has json content-type"
-        (is (re-matches #"application/json.*" (get-in response [:headers "Content-Type"]))))
-      (testing "is properly converted to a json string"
-        (is (= (json/parse-string (:body response)) source))))))
+(deftest wrap-response-logging-test
+  (testing "wrap-response-logging"
+    (logutils/with-test-logging
+      (let [stack (core/wrap-response-logging identity)
+            response (stack (basic-request))]
+        (is (logged? #"Computed response.*" :trace))))))
+
+(deftest wrap-request-logging-test
+  (testing "wrap-request-logging"
+    (logutils/with-test-logging
+      (let [subject "foo-agent"
+            method :get
+            uri "https://example.com"
+            stack (core/wrap-request-logging identity)
+            request (basic-request subject method uri)
+            response (stack request)]
+        (is (logged? (format "Processing %s %s" method uri) :debug))
+        (is (logged? #"Full request" :trace))))))
+
+(deftest wrap-data-errors-test
+  (testing "wrap-data-errors"
+    (testing "default behavior"
+      (logutils/with-test-logging
+        (let [stack (core/wrap-data-errors (throwing-handler :user-data-invalid "Error Message"))
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 400 (response :status)))
+          (is (= "Error Message" (get-in json-body ["error" "message"])))
+          (is (logged? #"Error Message" :error))
+          (is (logged? #"Submitted data is invalid" :error)))))
+    (doseq [error [:request-data-invalid :user-data-invalid :service-status-version-not-found]]
+      (testing (str "handles errors of " error)
+        (let [stack (core/wrap-data-errors (throwing-handler error "Error Message"))
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 400 (response :status)))
+          (is (= (name error) (get-in json-body ["error" "type"]))))))
+    (testing "can be plain text"
+      (let [stack (core/wrap-data-errors
+                    (throwing-handler :user-data-invalid "Error Message") :plain)
+            response (stack (basic-request))]
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
+
+(deftest wrap-schema-errors-test
+  (testing "wrap-schema-errors"
+    (testing "default behavior"
+      (logutils/with-test-logging
+        (let [stack (core/wrap-schema-errors cause-schema-error)
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 500 (response :status)))
+          (is (logged? #".*Something unexpected.*" :error))
+          (is (re-matches #"Something unexpected.*"(get-in json-body ["error" "message"])))
+          (is (= "application-error" (get-in json-body ["error" "type"]))))))
+    (testing "can be plain text"
+      (let [stack (core/wrap-schema-errors cause-schema-error :plain)
+            response (stack (basic-request))]
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
+
+(deftest wrap-uncaught-errors-test
+  (testing "wrap-uncaught-errors"
+    (testing "default behavior"
+      (logutils/with-test-logging
+        (let [stack (core/wrap-uncaught-errors (fn [_] (throw (IllegalStateException. "Woah..."))))
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 500 (response :status)))
+          (is (logged? #".*Internal Server Error.*" :warn))
+          (is (re-matches #"Internal Server Error.*" (get-in json-body ["error" "message"]))))))
+    (testing "can be plain text"
+      (let [stack (core/wrap-uncaught-errors (fn [_] (throw (IllegalStateException. "Woah..."))) :plain)
+            response (stack (basic-request))]
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
