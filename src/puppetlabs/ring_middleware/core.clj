@@ -11,6 +11,23 @@
   (:import (clojure.lang IFn)
            (java.util.regex Pattern)))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Private
+
+(defn sanitize-client-cert
+  "Given a ring request, return a map which replaces the :ssl-client-cert with
+  just the certificate's Common Name at :ssl-client-cert-cn.  Also, remove the
+  copy of the certificate put on the request by TK-auth."
+  [req]
+  (-> (if-let [client-cert (:ssl-client-cert req)]
+        (-> req
+            (dissoc :ssl-client-cert)
+            (assoc :ssl-client-cert-cn (ssl-utils/get-cn-from-x509-certificate client-cert)))
+        req)
+      (ks/dissoc-in [:authorization :certificate])))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Schemas
 
@@ -32,18 +49,6 @@
       rr/response
       (rr/status status)
       (rr/content-type "text/plain; charset=utf-8")))
-
-(defn sanitize-client-cert
-  "Given a ring request, return a map which replaces the :ssl-client-cert with
-  just the certificate's Common Name at :ssl-client-cert-cn.  Also, remove the
-  copy of the certificate put on the request by TK-auth."
-  [req]
-  (-> (if-let [client-cert (:ssl-client-cert req)]
-        (-> req
-            (dissoc :ssl-client-cert)
-            (assoc :ssl-client-cert-cn (ssl-utils/get-cn-from-x509-certificate client-cert)))
-        req)
-      (ks/dissoc-in [:authorization :certificate])))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
