@@ -7,9 +7,28 @@
             [ring.middleware.cookies :as cookies]
             [ring.util.response :as rr]
             [schema.core :as schema]
-            [slingshot.slingshot :refer [try+]])
+            [slingshot.slingshot :as sling])
   (:import (clojure.lang IFn)
-           (java.util.regex Pattern)))
+           (java.util.regex Pattern)
+           (java.security.cert X509Certificate)))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Schemas
+
+(def ResponseType
+  (schema/enum :json :plain))
+
+(def RingRequest
+  {:uri schema/Str
+   (schema/optional-key :ssl-client-cert) (schema/maybe X509Certificate)
+   schema/Keyword schema/Any})
+
+(def RingResponse
+  {:status schema/Int
+   :headers {schema/Str schema/Any}
+   :body schema/Any
+   schema/Keyword schema/Any})
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -29,22 +48,22 @@
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Schemas
-
-(def ResponseType (schema/enum :json :plain))
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Helpers
 
-(defn json-response [status body]
+(schema/defn ^:always-validate json-response
+  :- RingResponse
+  [status :- schema/Int
+   body :- schema/Any]
   (-> body
       json/encode
       rr/response
       (rr/status status)
       (rr/content-type "application/json; charset=utf-8")))
 
-(defn plain-response [status body]
+(schema/defn ^:always-validate plain-response
+  :- RingResponse
+  [status :- schema/Int
+   body :- schema/Str]
   (-> body
       rr/response
       (rr/status status)
@@ -54,26 +73,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Middleware
 
-(defn wrap-request-logging
+(schema/defn wrap-request-logging :- IFn
   "A ring middleware that logs the request."
-  [handler]
+  [handler :- IFn]
   (fn [{:keys [request-method uri] :as req}]
     (log/debug "Processing" request-method uri)
     (log/trace (str "Full request:\n" (ks/pprint-to-string (sanitize-client-cert req))))
     (handler req)))
 
-(defn wrap-response-logging
+(schema/defn wrap-response-logging :- IFn
   "A ring middleware that logs the response."
-  [handler]
+  [handler :- IFn]
   (fn [req]
     (let [resp (handler req)]
       (log/trace "Computed response:" resp)
       resp)))
 
-(defn wrap-proxy
+(schema/defn wrap-proxy :- IFn
   "Proxies requests to proxied-path, a local URI, to the remote URI at
   remote-uri-base, also a string."
-  [handler proxied-path remote-uri-base & [http-opts]]
+  [handler :- IFn
+   proxied-path :- (schema/enum Pattern schema/Str)
+   remote-uri-base :- schema/Str
+   & [http-opts]]
   (let [proxied-path (if (instance? Pattern proxied-path)
                        (re-pattern (str "^" (.pattern proxied-path)))
                        proxied-path)]
@@ -84,9 +106,9 @@
                (common/proxy-request req proxied-path remote-uri-base http-opts)
                (handler req))))))
 
-(defn wrap-add-cache-headers
+(schema/defn wrap-add-cache-headers :- IFn
   "Adds cache control invalidation headers to GET and PUT requests if they are handled by the handler"
-  [handler]
+  [handler :- IFn]
   (fn [request]
     (let [request-method (:request-method request)
           response       (handler request)]
@@ -97,27 +119,27 @@
             (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
             response)))))
 
-(defn wrap-add-x-frame-options-deny
+(schema/defn wrap-add-x-frame-options-deny :- IFn
   "Adds 'X-Frame-Options: DENY' headers to requests if they are handled by the handler"
-  [handler]
+  [handler :- IFn]
   (fn [request]
     (let [response (handler request)]
       (when response
         (assoc-in response [:headers "X-Frame-Options"] "DENY")))))
 
-(defn wrap-with-certificate-cn
+(schema/defn wrap-with-certificate-cn :- IFn
   "Ring middleware that will annotate the request with an
   :ssl-client-cn key representing the CN contained in the client
   certificate of the request. If no client certificate is present,
   the key's value is set to nil."
-  [handler]
+  [handler :- IFn]
   (fn [{:keys [ssl-client-cert] :as req}]
     (let [cn  (some-> ssl-client-cert
                       ssl-utils/get-cn-from-x509-certificate)
           req (assoc req :ssl-client-cn cn)]
       (handler req))))
 
-(schema/defn ^:always-validate wrap-data-errors
+(schema/defn ^:always-validate wrap-data-errors :- IFn
   "A ring middleware that catches slingshot errors of :type
   :request-dava-invalid and returns a 400."
   ([handler :- IFn]
@@ -131,16 +153,18 @@
                       :json (json-response code {:error e})
                       :plain (plain-response code (:message e))))]
      (fn [request]
-       (try+ (handler request)
+       (sling/try+ (handler request)
              (catch
                #(contains? #{:request-data-invalid
                              :user-data-invalid
+                             :data-invalid
+                             :bad-request
                              :service-status-version-not-found}
                            (:type %))
                e
                (response e)))))))
 
-(schema/defn ^:always-validate wrap-schema-errors
+(schema/defn ^:always-validate wrap-schema-errors :- IFn
   "A ring middleware that catches schema errors and returns a 500
   response with the details"
   ([handler :- IFn]
@@ -167,7 +191,7 @@
                   ;; re-throw exceptions that aren't schema errors
                   (throw e)))))))))
 
-(schema/defn ^:always-validate wrap-uncaught-errors
+(schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
   returns a 500 response with the error message"
   ([handler :- IFn]
