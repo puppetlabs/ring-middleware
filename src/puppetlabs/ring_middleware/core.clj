@@ -8,7 +8,8 @@
             [ring.util.response :as rr]
             [schema.core :as schema]
             [slingshot.slingshot :as sling])
-  (:import (clojure.lang IFn)
+  (:import (clojure.lang IFn ExceptionInfo)
+           (java.lang Exception)
            (java.util.regex Pattern)
            (java.security.cert X509Certificate)))
 
@@ -69,6 +70,50 @@
       (rr/status status)
       (rr/content-type "text/plain; charset=utf-8")))
 
+(defn throw-bad-request!
+  "Throw a :bad-request type slingshot error with the supplied message"
+  [message]
+  (sling/throw+  {:type :bad-request
+                  :message message}))
+
+(defn bad-request?
+  [e]
+  "Determine if the supplied slingshot error is for a bad request"
+  (when (map? e)
+    (= (:type e)
+       :bad-request)))
+
+(defn throw-service-unavailable!
+  "Throw a :service-unavailable type slingshot error with the supplied message"
+  [message]
+  (sling/throw+  {:type :service-unavailable
+                  :message message}))
+
+(defn service-unavailable?
+  [e]
+  "Determine if the supplied slingshot error is for an unavailable service"
+  (when  (map? e)
+    (= (:type e)
+       :service-unavailable)))
+
+(defn throw-data-invalid!
+  "Throw a :data-invalid type slingshot error with the supplied message"
+  [message]
+  (sling/throw+  {:type :data-invalid
+                  :message message}))
+
+(defn data-invalid?
+  [e]
+  "Determine if the supplied slingshot error is for invalid data"
+  (when  (map? e)
+    (= (:type e)
+       :data-invalid)))
+
+(defn schema-error?
+  [e]
+  "Determine if the supplied error is for a schema mismatch"
+  (when (instance? ExceptionInfo e)
+    (re-find #"does not match schema" (.getMessage e))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Middleware
@@ -140,15 +185,20 @@
       (handler req))))
 
 (schema/defn ^:always-validate wrap-data-errors :- IFn
-  "A ring middleware that catches slingshot errors of :type
-  :request-dava-invalid and returns a 400."
+  "A ring middleware that catches slingshot errors with a :type of
+  one of:
+    :request-data-invalid
+    :user-data-invalid
+    :data-invalid
+    :service-status-version-not-found
+  logs the error and returns a 400 ring response."
   ([handler :- IFn]
    (wrap-data-errors handler :json))
   ([handler :- IFn
     type :- ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error "Submitted data is invalid: "  (:message e))
+                    (log/error "Submitted data is invalid:" (:message e))
                     (case type
                       :json (json-response code {:error e})
                       :plain (plain-response code (:message e))))]
@@ -158,11 +208,46 @@
                #(contains? #{:request-data-invalid
                              :user-data-invalid
                              :data-invalid
-                             :bad-request
                              :service-status-version-not-found}
                            (:type %))
                e
                (response e)))))))
+
+(schema/defn ^:always-validate wrap-service-unavailable :- IFn
+  "A ring middleware that catches slingshot errors thrown by
+  throw-service-unavailabe!, logs the error and returns a 503 ring response."
+  ([handler :- IFn]
+   (wrap-service-unavailable handler :json))
+  ([handler :- IFn
+    type :- ResponseType]
+   (let [code 503
+         response (fn [e]
+                    (log/error "Service Unavailable:" (:message e))
+                    (case type
+                      :json (json-response code {:error e})
+                      :plain (plain-response code (:message e))))]
+     (fn [request]
+       (sling/try+ (handler request)
+         (catch service-unavailable? e
+                (response e)))))))
+
+(schema/defn ^:always-validate wrap-bad-request :- IFn
+  "A ring middleware that catches slingshot errors thrown by
+  throw-bad-request!, logs the error and returns a 503 ring response."
+  ([handler :- IFn]
+   (wrap-bad-request handler :json))
+  ([handler :- IFn
+    type :- ResponseType]
+   (let [code 400
+         response (fn [e]
+                    (log/error "Bad Request:" (:message e))
+                    (case type
+                      :json (json-response code {:error e})
+                      :plain (plain-response code (:message e))))]
+     (fn [request]
+       (sling/try+ (handler request)
+         (catch bad-request? e
+                (response e)))))))
 
 (schema/defn ^:always-validate wrap-schema-errors :- IFn
   "A ring middleware that catches schema errors and returns a 500
@@ -173,7 +258,7 @@
     type :- ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Something unexpected happened: "
+                    (let [msg (str "Something unexpected happened:"
                                    (select-keys (.getData e) [:error :value :type]))]
                       (log/error msg)
                       (case type
@@ -183,13 +268,14 @@
                                                :message msg}})
                         :plain (plain-response code msg))))]
      (fn [request]
+       ;; We cannot use slingshot.slingshot/try+ (as of 0.12.2) because
+       ;; it will unwrap an IExceptionInfo into a map to match against,
+       ;; while schema will raise a regular ExceptionInfo class to match.
        (try (handler request)
-            (catch clojure.lang.ExceptionInfo e
-              (let [message (.getMessage e)]
-                (if (re-find #"does not match schema" message)
-                  (response e)
-                  ;; re-throw exceptions that aren't schema errors
-                  (throw e)))))))))
+            (catch ExceptionInfo e
+              (if (schema-error? e)
+                (response e)
+                (throw e))))))))
 
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
@@ -200,7 +286,7 @@
     type :- ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Internal Server Error: " e)]
+                    (let [msg (str "Internal Server Error:" e)]
                       (log/error msg)
                       (case type
                         :json (json-response code
@@ -209,7 +295,7 @@
                                                :message msg}})
                         :plain (plain-response code msg))))]
      (fn [request]
-       (try (handler request)
+       (sling/try+ (handler request)
             (catch Exception e
               (response e)))))))
 

@@ -572,9 +572,31 @@
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
           (is (= (name error) (get-in json-body ["error" "type"]))))))
+    (testing "handles errors thrown by `throw-data-invalid!`"
+      (let [stack (core/wrap-data-errors (fn [_] (core/throw-data-invalid! "Error Message")))
+            response (stack (basic-request))
+            json-body (json/parse-string (response :body))]
+        (is (= 400 (response :status)))
+        (is (= (name "data-invalid") (get-in json-body ["error" "type"])))))
     (testing "can be plain text"
       (let [stack (core/wrap-data-errors
                     (throwing-handler :user-data-invalid "Error Message") :plain)
+            response (stack (basic-request))]
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
+
+(deftest wrap-bad-request-test
+  (testing "wrap-bad-request"
+    (testing "default behavior"
+      (logutils/with-test-logging
+       (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")))
+             response (stack (basic-request))
+             json-body (json/parse-string (response :body))]
+         (is (= 400 (response :status)))
+         (is (logged? #".*Bad Request.*" :error))
+         (is (re-matches #"Error Message.*"(get-in json-body ["error" "message"])))
+         (is (= "bad-request" (get-in json-body ["error" "type"]))))))
+    (testing "can be plain text"
+      (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")) :plain)
             response (stack (basic-request))]
         (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
 
@@ -591,6 +613,22 @@
           (is (= "application-error" (get-in json-body ["error" "type"]))))))
     (testing "can be plain text"
       (let [stack (core/wrap-schema-errors cause-schema-error :plain)
+            response (stack (basic-request))]
+        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
+
+(deftest wrap-service-unavailable-test
+  (testing "wrap-service-unavailable"
+    (testing "default behavior"
+      (logutils/with-test-logging
+        (let [stack (core/wrap-service-unavailable (fn [_] (core/throw-service-unavailable! "Test Service is DOWN!")))
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 503 (response :status)))
+          (is (logged? #".*Service Unavailable.*" :error))
+          (is (= "Test Service is DOWN!" (get-in json-body ["error" "message"])))
+          (is (= "service-unavailable" (get-in json-body ["error" "type"]))))))
+    (testing "can be plain text"
+      (let [stack (core/wrap-service-unavailable (fn [_] (core/throw-service-unavailable! "Test Service is DOWN!")) :plain)
             response (stack (basic-request))]
         (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
 
