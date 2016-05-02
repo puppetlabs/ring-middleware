@@ -111,9 +111,10 @@
 
 (defn schema-error?
   [e]
-  "Determine if the supplied error is for a schema mismatch"
-  (when (instance? ExceptionInfo e)
-    (re-find #"does not match schema" (.getMessage e))))
+  "Determine if the supplied slingshot error is for a schema mismatch"
+  (when (map? e)
+    (= (:type e)
+       :schema.core/error)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Middleware
@@ -259,7 +260,7 @@
    (let [code 500
          response (fn [e]
                     (let [msg (str "Something unexpected happened:"
-                                   (select-keys (.getData e) [:error :value :type]))]
+                                   (select-keys e [:error :value :type]))]
                       (log/error msg)
                       (case type
                         :json (json-response code
@@ -268,14 +269,9 @@
                                                :message msg}})
                         :plain (plain-response code msg))))]
      (fn [request]
-       ;; We cannot use slingshot.slingshot/try+ (as of 0.12.2) because
-       ;; it will unwrap an IExceptionInfo into a map to match against,
-       ;; while schema will raise a regular ExceptionInfo class to match.
-       (try (handler request)
-            (catch ExceptionInfo e
-              (if (schema-error? e)
-                (response e)
-                (throw e))))))))
+       (sling/try+ (handler request)
+            (catch schema-error? e
+              (response e)))))))
 
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
