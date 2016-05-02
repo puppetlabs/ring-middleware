@@ -16,6 +16,8 @@ To use `ring-middleware`, add this project as a dependency in your leiningen pro
 ## Schemas
 
   * `ResponseType` -- one of the two supported response types (`:json`, `:plain`) returned by many middleware.
+  * `RingRequest` -- a map containing at least a `:uri`, optionally a valid certificate, and any number of keyword-Any pairs.
+  * `RingResponse` -- a map with at least `:status`, `:headers`, and `:body` keys.
 
 
 ## Non-Middleware Helpers
@@ -30,6 +32,65 @@ Creates a basic ring response with `:status` of `status` and a `:body` of `body`
 (plain-response status body)
 ```
 Creates a basic ring response with `:status` of `status` and a `:body` of `body` set to UTF-8 plain text.
+
+
+### throw-bad-request!
+```clj
+(throw-bad-request! "Error Message")
+```
+Throws a :bad-request type slingshot error with the supplied message.
+See `wrap-bad-request` for middleware designed to compliment this function,
+also `bad-request?` for a function to help implement your own error handling.
+
+### throw-service-unavailable!
+```clj
+(throw-service-unavailable! "Error Message")
+```
+Throws a :service-unavailable type slingshot error with the supplied message.
+See `wrap-service-unavailable` for middleware designed to compliment this function,
+also `service-unavailable?` for a function to help implement your own error handling.
+
+### throw-data-invalid!
+```clj
+(throw-data-invalid! "Error Message")
+```
+Throws a :data-invalid type slingshot error with the supplied message.
+See `wrap-data-errors` for middleware designed to compliment this function,
+also `data-invalid?` for a function to help implement your own error handling.
+
+
+### bad-request?
+```clj
+(try+ (handler request)
+  (catch bad-request? e
+    (...handle a bad request...)))
+```
+Determines if the supplied slingshot error map is for a bad request.
+
+### service-unavailable?
+```clj
+(try+ (handler request)
+  (catch service-unavailable? e
+    (...handle service unavailability...)))
+```
+Determines if the supplied slingshot error map is for the service being unavailable.
+
+### data-invalid?
+```clj
+(try+ (handler request)
+  (catch data-invalid? e
+    (...handle invalid data...)))
+```
+Determines if the supplied slingshot error map is for invalid data.
+
+### schema-error?
+```clj
+(try+ (handler request)
+  (catch schema-error? e
+    (...handle schema error...)))
+```
+Determines if the supplied slingshot error map is for a schema error.
+
 
 
 ## Middleware
@@ -131,6 +192,7 @@ Always returns a status code of 400 to the client and logs the error message at 
 Catches and processes any exceptions thrown via `slingshot/throw+` with a `:type` of one of:
   * `:request-data-invalid`
   * `:user-data-invalid`
+  * `:data-invalid`
   * `:service-status-version-not-found`
 
 Returns a basic ring response map with the `:body` set to the JSON serialized representation of the exception thrown wrapped in a map and accessible by the "error" key.
@@ -150,6 +212,31 @@ Returns valid [`ResponseType`](#schemas)s, eg:
 (wrap-data-errors handler :plain)
 ```
 
+### wrap-bad-request
+```clj
+(wrap-bad-request handler)
+```
+Always returns a status code of 400 to the client and logs the error message at the "error" log level.
+Catches and processes any exceptions thrown via `slingshot/throw+` with a `:type` of one of:
+  * `:bad-request`
+
+Returns a basic ring response map with the `:body` set to the JSON serialized representation of the exception thrown wrapped in a map and accessible by the "error" key.
+
+Example return body:
+```json
+{
+  "error": {
+    "type": "bad-request",
+    "message": "Error Message From Thrower"
+  }
+}
+```
+
+Returns valid [`ResponseType`](#schemas)s, eg:
+```clj
+(wrap-bad-request handler :plain)
+```
+
 ### wrap-schema-errors
 ```clj
 (wrap-schema-errors handler)
@@ -163,7 +250,7 @@ Example return body:
 {
   "error": {
     "type": "application-error",
-    "message": "Something unexpected happened: {:error ... :value ... :type ...}"
+    "message": "Something unexpected happened: {:error ... :value ... :type :schema.core/error}"
   }
 }
 ```
