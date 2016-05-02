@@ -145,12 +145,12 @@
   (let [proxied-path (if (instance? Pattern proxied-path)
                        (re-pattern (str "^" (.pattern proxied-path)))
                        proxied-path)]
-       (cookies/wrap-cookies
-         (fn [req]
-             (if (or (and (string? proxied-path) (.startsWith ^String (:uri req) (str proxied-path "/")))
-                     (and (instance? Pattern proxied-path) (re-find proxied-path (:uri req))))
-               (common/proxy-request req proxied-path remote-uri-base http-opts)
-               (handler req))))))
+    (cookies/wrap-cookies
+     (fn [req]
+       (if (or (and (string? proxied-path) (.startsWith ^String (:uri req) (str proxied-path "/")))
+               (and (instance? Pattern proxied-path) (re-find proxied-path (:uri req))))
+         (common/proxy-request req proxied-path remote-uri-base http-opts)
+         (handler req))))))
 
 (schema/defn wrap-add-cache-headers :- IFn
   "Adds cache control invalidation headers to GET and PUT requests if they are handled by the handler"
@@ -160,10 +160,10 @@
           response       (handler request)]
       (when-not (nil? response)
         (if (or
-              (= request-method :get)
-              (= request-method :put))
-            (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
-            response)))))
+             (= request-method :get)
+             (= request-method :put))
+          (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
+          response)))))
 
 (schema/defn wrap-add-x-frame-options-deny :- IFn
   "Adds 'X-Frame-Options: DENY' headers to requests if they are handled by the handler"
@@ -205,14 +205,14 @@
                       :plain (plain-response code (:message e))))]
      (fn [request]
        (sling/try+ (handler request)
-             (catch
-               #(contains? #{:request-data-invalid
-                             :user-data-invalid
-                             :data-invalid
-                             :service-status-version-not-found}
-                           (:type %))
-               e
-               (response e)))))))
+                   (catch
+                    #(contains? #{:request-data-invalid
+                                  :user-data-invalid
+                                  :data-invalid
+                                  :service-status-version-not-found}
+                                (:type %))
+                    e
+                     (response e)))))))
 
 (schema/defn ^:always-validate wrap-service-unavailable :- IFn
   "A ring middleware that catches slingshot errors thrown by
@@ -229,8 +229,8 @@
                       :plain (plain-response code (:message e))))]
      (fn [request]
        (sling/try+ (handler request)
-         (catch service-unavailable? e
-                (response e)))))))
+                   (catch service-unavailable? e
+                     (response e)))))))
 
 (schema/defn ^:always-validate wrap-bad-request :- IFn
   "A ring middleware that catches slingshot errors thrown by
@@ -247,8 +247,8 @@
                       :plain (plain-response code (:message e))))]
      (fn [request]
        (sling/try+ (handler request)
-         (catch bad-request? e
-                (response e)))))))
+                   (catch bad-request? e
+                     (response e)))))))
 
 (schema/defn ^:always-validate wrap-schema-errors :- IFn
   "A ring middleware that catches schema errors and returns a 500
@@ -259,7 +259,7 @@
     type :- ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Something unexpected happened:"
+                    (let [msg (str "Something unexpected happened: "
                                    (select-keys e [:error :value :type]))]
                       (log/error msg)
                       (case type
@@ -270,8 +270,8 @@
                         :plain (plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
-            (catch schema-error? e
-              (response e)))))))
+                   (catch schema-error? e
+                     (response e)))))))
 
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
@@ -282,7 +282,7 @@
     type :- ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Internal Server Error:" e)]
+                    (let [msg (str "Internal Server Error: " e)]
                       (log/error msg)
                       (case type
                         :json (json-response code
@@ -292,6 +292,6 @@
                         :plain (plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
-            (catch Exception e
-              (response e)))))))
+                   (catch Exception e
+                     (response e)))))))
 

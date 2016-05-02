@@ -95,15 +95,15 @@
 (def proxy-wrapped-app-ssl
   (-> proxy-error-handler
       (core/wrap-proxy "/hello-proxy" "https://localhost:9001/hello"
-                  {:ssl-cert "./dev-resources/config/jetty/ssl/certs/localhost.pem"
-                   :ssl-key  "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
-                   :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"})))
+                       {:ssl-cert "./dev-resources/config/jetty/ssl/certs/localhost.pem"
+                        :ssl-key  "./dev-resources/config/jetty/ssl/private_keys/localhost.pem"
+                        :ssl-ca-cert "./dev-resources/config/jetty/ssl/certs/ca.pem"})))
 
 (def proxy-wrapped-app-redirects
   (-> proxy-error-handler
       (core/wrap-proxy "/hello-proxy" "http://localhost:9000/hello"
-                  {:force-redirects true
-                   :follow-redirects true})))
+                       {:force-redirects true
+                        :follow-redirects true})))
 
 (def proxy-wrapped-app-regex
   (-> proxy-regex-fallthrough
@@ -128,23 +128,23 @@
      {:webserver ~target}
      (let [target-webserver# (get-service proxy-target-app# :WebserverService)]
        (add-ring-handler
-         target-webserver#
-         ~ring-handler
-         ~target-endpoint)
+        target-webserver#
+        ~ring-handler
+        ~target-endpoint)
        (add-ring-handler
-         target-webserver#
-         non-proxy-target
-         "/different")
+        target-webserver#
+        non-proxy-target
+        "/different")
        (add-ring-handler
-         target-webserver#
-         post-target-handler
-         "/hello/post/"))
-       (with-app-with-config proxy-app#
-         [jetty9-service]
-         {:webserver ~proxy}
-         (let [proxy-webserver# (get-service proxy-app# :WebserverService)]
-           (add-ring-handler proxy-webserver# ~proxy-handler ~endpoint))
-         ~@body)))
+        target-webserver#
+        post-target-handler
+        "/hello/post/"))
+     (with-app-with-config proxy-app#
+       [jetty9-service]
+       {:webserver ~proxy}
+       (let [proxy-webserver# (get-service proxy-app# :WebserverService)]
+         (add-ring-handler proxy-webserver# ~proxy-handler ~endpoint))
+       ~@body)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -275,10 +275,10 @@
                         :port 9000}
          :proxy        {:host "0.0.0.0"
                         :port 10000}
-        :proxy-handler proxy-wrapped-app
-        :ring-handler  proxy-target-handler
-        :endpoint      "/hello-proxy"
-        :target-endpoint "/hello"}
+         :proxy-handler proxy-wrapped-app
+         :ring-handler  proxy-target-handler
+         :endpoint      "/hello-proxy"
+         :target-endpoint "/hello"}
         (let [response (http-get "http://localhost:9000/hello")]
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
@@ -291,8 +291,8 @@
           (is (= (:status response) 302))
           (is (= "/hello/world" (get-in response [:headers "location"]))))
         (let [response (http-post "http://localhost:10000/hello-proxy/"
-                                 {:follow-redirects false
-                                  :as :text})]
+                                  {:follow-redirects false
+                                   :as :text})]
           (is (= (:status response) 302))
           (is (= "/hello/world" (get-in response [:headers "location"]))))
         (let [response (http-get "http://localhost:10000/hello-proxy/world")]
@@ -315,7 +315,7 @@
           (is (= (:status response) 200))
           (is (= (:body response) "Hello, World!")))
         (let [response (http-post "http://localhost:10000/hello-proxy/"
-                                 {:follow-redirects false})]
+                                  {:follow-redirects false})]
           (is (= (:status response) 200)))))
 
     (testing "redirect test with fully qualified url, correct host, and proxied path"
@@ -580,7 +580,7 @@
         (is (= (name "data-invalid") (get-in json-body ["error" "type"])))))
     (testing "can be plain text"
       (let [stack (core/wrap-data-errors
-                    (throwing-handler :user-data-invalid "Error Message") :plain)
+                   (throwing-handler :user-data-invalid "Error Message") :plain)
             response (stack (basic-request))]
         (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
 
@@ -588,13 +588,13 @@
   (testing "wrap-bad-request"
     (testing "default behavior"
       (logutils/with-test-logging
-       (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")))
-             response (stack (basic-request))
-             json-body (json/parse-string (response :body))]
-         (is (= 400 (response :status)))
-         (is (logged? #".*Bad Request.*" :error))
-         (is (re-matches #"Error Message.*"(get-in json-body ["error" "message"])))
-         (is (= "bad-request" (get-in json-body ["error" "type"]))))))
+        (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")))
+              response (stack (basic-request))
+              json-body (json/parse-string (response :body))]
+          (is (= 400 (response :status)))
+          (is (logged? #".*Bad Request.*" :error))
+          (is (re-matches #"Error Message.*" (get-in json-body ["error" "message"])))
+          (is (= "bad-request" (get-in json-body ["error" "type"]))))))
     (testing "can be plain text"
       (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")) :plain)
             response (stack (basic-request))]
@@ -609,7 +609,7 @@
               json-body (json/parse-string (response :body))]
           (is (= 500 (response :status)))
           (is (logged? #".*Something unexpected.*" :error))
-          (is (re-matches #"Something unexpected.*"(get-in json-body ["error" "message"])))
+          (is (re-matches #"Something unexpected.*" (get-in json-body ["error" "message"])))
           (is (= "application-error" (get-in json-body ["error" "type"]))))))
     (testing "can be plain text"
       (let [stack (core/wrap-schema-errors cause-schema-error :plain)
