@@ -119,7 +119,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Middleware
 
-(schema/defn wrap-request-logging :- IFn
+(schema/defn ^:always-validate wrap-request-logging :- IFn
   "A ring middleware that logs the request."
   [handler :- IFn]
   (fn [{:keys [request-method uri] :as req}]
@@ -127,7 +127,7 @@
     (log/trace (str "Full request:\n" (ks/pprint-to-string (sanitize-client-cert req))))
     (handler req)))
 
-(schema/defn wrap-response-logging :- IFn
+(schema/defn ^:always-validate wrap-response-logging :- IFn
   "A ring middleware that logs the response."
   [handler :- IFn]
   (fn [req]
@@ -135,11 +135,11 @@
       (log/trace "Computed response:" resp)
       resp)))
 
-(schema/defn wrap-proxy :- IFn
+(schema/defn ^:always-validate wrap-proxy :- IFn
   "Proxies requests to proxied-path, a local URI, to the remote URI at
   remote-uri-base, also a string."
   [handler :- IFn
-   proxied-path :- (schema/enum Pattern schema/Str)
+   proxied-path :- (schema/either Pattern schema/Str)
    remote-uri-base :- schema/Str
    & [http-opts]]
   (let [proxied-path (if (instance? Pattern proxied-path)
@@ -152,7 +152,7 @@
          (common/proxy-request req proxied-path remote-uri-base http-opts)
          (handler req))))))
 
-(schema/defn wrap-add-cache-headers :- IFn
+(schema/defn ^:always-validate wrap-add-cache-headers :- IFn
   "Adds cache control invalidation headers to GET and PUT requests if they are handled by the handler"
   [handler :- IFn]
   (fn [request]
@@ -165,7 +165,7 @@
           (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
           response)))))
 
-(schema/defn wrap-add-x-frame-options-deny :- IFn
+(schema/defn ^:always-validate wrap-add-x-frame-options-deny :- IFn
   "Adds 'X-Frame-Options: DENY' headers to requests if they are handled by the handler"
   [handler :- IFn]
   (fn [request]
@@ -173,7 +173,7 @@
       (when response
         (assoc-in response [:headers "X-Frame-Options"] "DENY")))))
 
-(schema/defn wrap-with-certificate-cn :- IFn
+(schema/defn ^:always-validate wrap-with-certificate-cn :- IFn
   "Ring middleware that will annotate the request with an
   :ssl-client-cn key representing the CN contained in the client
   certificate of the request. If no client certificate is present,
