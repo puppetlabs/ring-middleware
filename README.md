@@ -287,3 +287,5 @@ Returns valid [`ResponseType`](#schemas)s, eg:
 
 Please log tickets and issues at our [Trapperkeeper Issue Tracker](https://tickets.puppetlabs.com/browse/TK).
 In addition there is a #trapperkeeper channel on Freenode.
+
+Maintainers: Justin Stoller <justin@puppet.com>, Kevin Corcoran <kevin.corcoran@puppet.com>, Nathaniel Smith <nathaniel@puppet.com>
