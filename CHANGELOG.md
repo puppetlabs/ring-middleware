@@ -1,3 +1,8 @@
+# 0.3.1
+* This is a bug-fix release for a regression in wrap-proxy.
+* All middleware now have the `:always-validate` metadata
+  set for schema validation.
+
 # 0.3.0
 * This version adds many middleware that are used in other
   puppetlabs projects.  These middleware are mostly for logging
@@ -35,6 +40,5 @@
 * Bump http-client to v0.2.8
 
 # 0.1.2
-
 * Add support for redirect following on proxy requests
 * Fix issue where Gzipped proxy responses were being truncated
