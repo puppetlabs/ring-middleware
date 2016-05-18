@@ -5,6 +5,7 @@
             [compojure.handler :as handler]
             [compojure.route :as route]
             [puppetlabs.ring-middleware.core :as core]
+            [puppetlabs.ring-middleware.utils :as utils]
             [puppetlabs.ring-middleware.testutils.common :refer :all]
             [puppetlabs.ssl-utils.core :refer [pem->cert]]
             [puppetlabs.ssl-utils.simple :as ssl-simple]
@@ -149,27 +150,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Core Helpers
-
-(deftest json-response-test
-  (testing "json response"
-    (let [source {:key 1}
-          response (core/json-response 200 source)]
-      (testing "has 200 status code"
-        (is (= 200 (:status response))))
-      (testing "has json content-type"
-        (is (re-matches #"application/json.*" (get-in response [:headers "Content-Type"]))))
-      (testing "is properly converted to a json string"
-        (is (= 1 ((json/parse-string (:body response)) "key")))))))
-
-(deftest plain-response-test
-  (testing "json response"
-    (let [message "Response message"
-          response (core/plain-response 200 message)]
-      (testing "has 200 status code"
-        (is (= 200 (:status response))))
-      (testing "has plain content-type"
-        (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"])))))))
-
 
 (deftest sanitize-client-cert-test
   (testing "sanitize-client-cert"
@@ -575,7 +555,7 @@
             (is (= (name error) (get json-body "kind")))))))
     (testing "handles errors thrown by `throw-data-invalid!`"
       (logutils/with-test-logging
-        (let [stack (core/wrap-data-errors (fn [_] (core/throw-data-invalid! "Error Message")))
+        (let [stack (core/wrap-data-errors (fn [_] (utils/throw-data-invalid! "Error Message")))
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
@@ -591,7 +571,7 @@
   (testing "wrap-bad-request"
     (testing "default behavior"
       (logutils/with-test-logging
-        (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")))
+        (let [stack (core/wrap-bad-request (fn [_] (utils/throw-bad-request! "Error Message")))
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
@@ -600,7 +580,7 @@
           (is (= "bad-request" (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
-        (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")) :plain)
+        (let [stack (core/wrap-bad-request (fn [_] (utils/throw-bad-request! "Error Message")) :plain)
               response (stack (basic-request))]
           (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"]))))))))
 
@@ -625,7 +605,7 @@
   (testing "wrap-service-unavailable"
     (testing "default behavior"
       (logutils/with-test-logging
-        (let [stack (core/wrap-service-unavailable (fn [_] (core/throw-service-unavailable! "Test Service is DOWN!")))
+        (let [stack (core/wrap-service-unavailable (fn [_] (utils/throw-service-unavailable! "Test Service is DOWN!")))
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 503 (response :status)))
@@ -634,7 +614,7 @@
           (is (= "service-unavailable" (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
-        (let [stack (core/wrap-service-unavailable (fn [_] (core/throw-service-unavailable! "Test Service is DOWN!")) :plain)
+        (let [stack (core/wrap-service-unavailable (fn [_] (utils/throw-service-unavailable! "Test Service is DOWN!")) :plain)
               response (stack (basic-request))]
           (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"]))))))))
 
