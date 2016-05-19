@@ -73,40 +73,40 @@
 (defn throw-bad-request!
   "Throw a :bad-request type slingshot error with the supplied message"
   [message]
-  (sling/throw+  {:type :bad-request
-                  :message message}))
+  (sling/throw+  {:kind :bad-request
+                  :msg message}))
 
 (defn bad-request?
   [e]
   "Determine if the supplied slingshot error is for a bad request"
   (when (map? e)
-    (= (:type e)
+    (= (:kind e)
        :bad-request)))
 
 (defn throw-service-unavailable!
   "Throw a :service-unavailable type slingshot error with the supplied message"
   [message]
-  (sling/throw+  {:type :service-unavailable
-                  :message message}))
+  (sling/throw+  {:kind :service-unavailable
+                  :msg message}))
 
 (defn service-unavailable?
   [e]
   "Determine if the supplied slingshot error is for an unavailable service"
   (when  (map? e)
-    (= (:type e)
+    (= (:kind e)
        :service-unavailable)))
 
 (defn throw-data-invalid!
   "Throw a :data-invalid type slingshot error with the supplied message"
   [message]
-  (sling/throw+  {:type :data-invalid
-                  :message message}))
+  (sling/throw+  {:kind :data-invalid
+                  :msg message}))
 
 (defn data-invalid?
   [e]
   "Determine if the supplied slingshot error is for invalid data"
   (when  (map? e)
-    (= (:type e)
+    (= (:kind e)
        :data-invalid)))
 
 (defn schema-error?
@@ -186,8 +186,8 @@
       (handler req))))
 
 (schema/defn ^:always-validate wrap-data-errors :- IFn
-  "A ring middleware that catches slingshot errors with a :type of
-  one of:
+  "A ring middleware that catches a slingshot error thrown by
+  throw-data-invalid! or a :kind of slingshot error of one of:
     :request-data-invalid
     :user-data-invalid
     :data-invalid
@@ -199,10 +199,10 @@
     type :- ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error "Submitted data is invalid:" (:message e))
+                    (log/error "Submitted data is invalid:" (:msg e))
                     (case type
-                      :json (json-response code {:error e})
-                      :plain (plain-response code (:message e))))]
+                      :json (json-response code e)
+                      :plain (plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch
@@ -210,7 +210,7 @@
                                   :user-data-invalid
                                   :data-invalid
                                   :service-status-version-not-found}
-                                (:type %))
+                                (:kind %))
                     e
                      (response e)))))))
 
@@ -223,10 +223,10 @@
     type :- ResponseType]
    (let [code 503
          response (fn [e]
-                    (log/error "Service Unavailable:" (:message e))
+                    (log/error "Service Unavailable:" (:msg e))
                     (case type
-                      :json (json-response code {:error e})
-                      :plain (plain-response code (:message e))))]
+                      :json (json-response code e)
+                      :plain (plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch service-unavailable? e
@@ -241,10 +241,10 @@
     type :- ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error "Bad Request:" (:message e))
+                    (log/error "Bad Request:" (:msg e))
                     (case type
-                      :json (json-response code {:error e})
-                      :plain (plain-response code (:message e))))]
+                      :json (json-response code e)
+                      :plain (plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch bad-request? e
@@ -264,9 +264,8 @@
                       (log/error msg)
                       (case type
                         :json (json-response code
-                                             {:error
-                                              {:type :application-error
-                                               :message msg}})
+                                             {:kind :application-error
+                                              :msg msg})
                         :plain (plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
@@ -286,9 +285,8 @@
                       (log/error msg)
                       (case type
                         :json (json-response code
-                                             {:error
-                                              {:type :application-error
-                                               :message msg}})
+                                             {:kind :application-error
+                                              :msg msg})
                         :plain (plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
