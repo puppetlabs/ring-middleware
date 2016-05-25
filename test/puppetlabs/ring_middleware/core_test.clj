@@ -29,8 +29,8 @@
   (throw (IllegalStateException. "The test should have never gotten here...")))
 
 (defn throwing-handler
-  [atype msg]
-  (fn [_] (slingshot/throw+ {:type atype :message msg})))
+  [kind msg]
+  (fn [_] (slingshot/throw+ {:kind kind :msg msg})))
 
 (defn basic-request
   ([] (basic-request "foo-agent" :get "https://example.com"))
@@ -562,7 +562,7 @@
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
-          (is (= "Error Message" (get-in json-body ["error" "message"])))
+          (is (= "Error Message" (get json-body "msg")))
           (is (logged? #"Error Message" :error))
           (is (logged? #"Submitted data is invalid" :error)))))
     (doseq [error [:request-data-invalid :user-data-invalid :service-status-version-not-found]]
@@ -572,14 +572,14 @@
                 response (stack (basic-request))
                 json-body (json/parse-string (response :body))]
             (is (= 400 (response :status)))
-            (is (= (name error) (get-in json-body ["error" "type"])))))))
+            (is (= (name error) (get json-body "kind")))))))
     (testing "handles errors thrown by `throw-data-invalid!`"
       (logutils/with-test-logging
         (let [stack (core/wrap-data-errors (fn [_] (core/throw-data-invalid! "Error Message")))
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
-          (is (= (name "data-invalid") (get-in json-body ["error" "type"]))))))
+          (is (= (name "data-invalid") (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
         (let [stack (core/wrap-data-errors
@@ -596,8 +596,8 @@
               json-body (json/parse-string (response :body))]
           (is (= 400 (response :status)))
           (is (logged? #".*Bad Request.*" :error))
-          (is (re-matches #"Error Message.*" (get-in json-body ["error" "message"])))
-          (is (= "bad-request" (get-in json-body ["error" "type"]))))))
+          (is (re-matches #"Error Message.*" (get json-body "msg" "")))
+          (is (= "bad-request" (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
         (let [stack (core/wrap-bad-request (fn [_] (core/throw-bad-request! "Error Message")) :plain)
@@ -613,8 +613,8 @@
               json-body (json/parse-string (response :body))]
           (is (= 500 (response :status)))
           (is (logged? #".*Something unexpected.*" :error))
-          (is (re-matches #"Something unexpected.*" (get-in json-body ["error" "message"])))
-          (is (= "application-error" (get-in json-body ["error" "type"]))))))
+          (is (re-matches #"Something unexpected.*" (get json-body "msg" "")))
+          (is (= "application-error" (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
         (let [stack (core/wrap-schema-errors cause-schema-error :plain)
@@ -630,8 +630,8 @@
               json-body (json/parse-string (response :body))]
           (is (= 503 (response :status)))
           (is (logged? #".*Service Unavailable.*" :error))
-          (is (= "Test Service is DOWN!" (get-in json-body ["error" "message"])))
-          (is (= "service-unavailable" (get-in json-body ["error" "type"]))))))
+          (is (= "Test Service is DOWN!" (get json-body "msg")))
+          (is (= "service-unavailable" (get json-body "kind"))))))
     (testing "can be plain text"
       (logutils/with-test-logging
         (let [stack (core/wrap-service-unavailable (fn [_] (core/throw-service-unavailable! "Test Service is DOWN!")) :plain)
@@ -647,7 +647,7 @@
               json-body (json/parse-string (response :body))]
           (is (= 500 (response :status)))
           (is (logged? #".*Internal Server Error.*" :warn))
-          (is (re-matches #"Internal Server Error.*" (get-in json-body ["error" "message"]))))))
+          (is (re-matches #"Internal Server Error.*" (get json-body "msg" ""))))))
     (testing "can be plain text"
       (logutils/with-test-logging
         (let [stack (core/wrap-uncaught-errors (fn [_] (throw (IllegalStateException. "Woah..."))) :plain)
