@@ -3,6 +3,7 @@
             [clojure.tools.logging :as log]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.ring-middleware.common :as common]
+            [puppetlabs.ring-middleware.utils :as utils]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [ring.middleware.cookies :as cookies]
             [ring.util.response :as rr]
@@ -13,23 +14,6 @@
            (java.util.regex Pattern)
            (java.security.cert X509Certificate)))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Schemas
-
-(def ResponseType
-  (schema/enum :json :plain))
-
-(def RingRequest
-  {:uri schema/Str
-   (schema/optional-key :ssl-client-cert) (schema/maybe X509Certificate)
-   schema/Keyword schema/Any})
-
-(def RingResponse
-  {:status schema/Int
-   :headers {schema/Str schema/Any}
-   :body schema/Any
-   schema/Keyword schema/Any})
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48,73 +32,6 @@
       (ks/dissoc-in [:authorization :certificate])))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; Helpers
-
-(schema/defn ^:always-validate json-response
-  :- RingResponse
-  [status :- schema/Int
-   body :- schema/Any]
-  (-> body
-      json/encode
-      rr/response
-      (rr/status status)
-      (rr/content-type "application/json; charset=utf-8")))
-
-(schema/defn ^:always-validate plain-response
-  :- RingResponse
-  [status :- schema/Int
-   body :- schema/Str]
-  (-> body
-      rr/response
-      (rr/status status)
-      (rr/content-type "text/plain; charset=utf-8")))
-
-(defn throw-bad-request!
-  "Throw a :bad-request type slingshot error with the supplied message"
-  [message]
-  (sling/throw+  {:kind :bad-request
-                  :msg message}))
-
-(defn bad-request?
-  [e]
-  "Determine if the supplied slingshot error is for a bad request"
-  (when (map? e)
-    (= (:kind e)
-       :bad-request)))
-
-(defn throw-service-unavailable!
-  "Throw a :service-unavailable type slingshot error with the supplied message"
-  [message]
-  (sling/throw+  {:kind :service-unavailable
-                  :msg message}))
-
-(defn service-unavailable?
-  [e]
-  "Determine if the supplied slingshot error is for an unavailable service"
-  (when  (map? e)
-    (= (:kind e)
-       :service-unavailable)))
-
-(defn throw-data-invalid!
-  "Throw a :data-invalid type slingshot error with the supplied message"
-  [message]
-  (sling/throw+  {:kind :data-invalid
-                  :msg message}))
-
-(defn data-invalid?
-  [e]
-  "Determine if the supplied slingshot error is for invalid data"
-  (when  (map? e)
-    (= (:kind e)
-       :data-invalid)))
-
-(defn schema-error?
-  [e]
-  "Determine if the supplied slingshot error is for a schema mismatch"
-  (when (map? e)
-    (= (:type e)
-       :schema.core/error)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Middleware
@@ -196,13 +113,13 @@
   ([handler :- IFn]
    (wrap-data-errors handler :json))
   ([handler :- IFn
-    type :- ResponseType]
+    type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
                     (log/error "Submitted data is invalid:" (:msg e))
                     (case type
-                      :json (json-response code e)
-                      :plain (plain-response code (:msg e))))]
+                      :json (utils/json-response code e)
+                      :plain (utils/plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch
@@ -216,38 +133,40 @@
 
 (schema/defn ^:always-validate wrap-service-unavailable :- IFn
   "A ring middleware that catches slingshot errors thrown by
-  throw-service-unavailabe!, logs the error and returns a 503 ring response."
+  utils/throw-service-unavailabe!, logs the error and returns a 503 ring
+  response."
   ([handler :- IFn]
    (wrap-service-unavailable handler :json))
   ([handler :- IFn
-    type :- ResponseType]
+    type :- utils/ResponseType]
    (let [code 503
          response (fn [e]
                     (log/error "Service Unavailable:" (:msg e))
                     (case type
-                      :json (json-response code e)
-                      :plain (plain-response code (:msg e))))]
+                      :json (utils/json-response code e)
+                      :plain (utils/plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
-                   (catch service-unavailable? e
+                   (catch utils/service-unavailable? e
                      (response e)))))))
 
 (schema/defn ^:always-validate wrap-bad-request :- IFn
   "A ring middleware that catches slingshot errors thrown by
-  throw-bad-request!, logs the error and returns a 503 ring response."
+  utils/throw-bad-request!, logs the error and returns a 503 ring
+  response."
   ([handler :- IFn]
    (wrap-bad-request handler :json))
   ([handler :- IFn
-    type :- ResponseType]
+    type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
                     (log/error "Bad Request:" (:msg e))
                     (case type
-                      :json (json-response code e)
-                      :plain (plain-response code (:msg e))))]
+                      :json (utils/json-response code e)
+                      :plain (utils/plain-response code (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
-                   (catch bad-request? e
+                   (catch utils/bad-request? e
                      (response e)))))))
 
 (schema/defn ^:always-validate wrap-schema-errors :- IFn
@@ -256,20 +175,20 @@
   ([handler :- IFn]
    (wrap-schema-errors handler :json))
   ([handler :- IFn
-    type :- ResponseType]
+    type :- utils/ResponseType]
    (let [code 500
          response (fn [e]
                     (let [msg (str "Something unexpected happened: "
                                    (select-keys e [:error :value :type]))]
                       (log/error msg)
                       (case type
-                        :json (json-response code
-                                             {:kind :application-error
-                                              :msg msg})
-                        :plain (plain-response code msg))))]
+                        :json (utils/json-response code
+                                                   {:kind :application-error
+                                                    :msg msg})
+                        :plain (utils/plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
-                   (catch schema-error? e
+                   (catch utils/schema-error? e
                      (response e)))))))
 
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
@@ -278,16 +197,16 @@
   ([handler :- IFn]
    (wrap-uncaught-errors handler :json))
   ([handler :- IFn
-    type :- ResponseType]
+    type :- utils/ResponseType]
    (let [code 500
          response (fn [e]
                     (let [msg (str "Internal Server Error: " e)]
                       (log/error msg)
                       (case type
-                        :json (json-response code
-                                             {:kind :application-error
-                                              :msg msg})
-                        :plain (plain-response code msg))))]
+                        :json (utils/json-response code
+                                                   {:kind :application-error
+                                                    :msg msg})
+                        :plain (utils/plain-response code msg))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch Exception e
