@@ -1,3 +1,9 @@
+# 1.0.0
+#### Breaking Changes
+* Moves from `{:type ... :message ...}` to `{:kind ... :msg ...}` for
+  exceptions and error responses.
+* Moves schemas and helpers previously defined in `core` namespace into new `utils` namespace.
+
 # 0.3.1
 * This is a bug-fix release for a regression in wrap-proxy.
 * All middleware now have the `:always-validate` metadata
