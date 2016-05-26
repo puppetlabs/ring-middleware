@@ -2,7 +2,7 @@
 (def ks-version "1.3.0")
 (def tk-version "1.3.1")
 
-(defproject puppetlabs/ring-middleware "0.3.2"
+(defproject puppetlabs/ring-middleware "1.0.0-SNAPSHOT"
   :dependencies [[org.clojure/clojure ~clj-version]
 
                  ;; begin version conflict resolution dependencies
