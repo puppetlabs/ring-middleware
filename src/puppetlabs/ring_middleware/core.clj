@@ -8,6 +8,7 @@
             [ring.middleware.cookies :as cookies]
             [ring.util.response :as rr]
             [schema.core :as schema]
+            [puppetlabs.i18n.core :as i18n :refer [trs]]
             [slingshot.slingshot :as sling])
   (:import (clojure.lang IFn ExceptionInfo)
            (java.lang Exception)
@@ -40,8 +41,8 @@
   "A ring middleware that logs the request."
   [handler :- IFn]
   (fn [{:keys [request-method uri] :as req}]
-    (log/debug "Processing" request-method uri)
-    (log/trace (str "Full request:\n" (ks/pprint-to-string (sanitize-client-cert req))))
+    (log/debug (trs "Processing {0} {1}" request-method uri))
+    (log/trace (format "%s\n%s" (trs "Full request:") (ks/pprint-to-string (sanitize-client-cert req))))
     (handler req)))
 
 (schema/defn ^:always-validate wrap-response-logging :- IFn
@@ -49,7 +50,7 @@
   [handler :- IFn]
   (fn [req]
     (let [resp (handler req)]
-      (log/trace "Computed response:" resp)
+      (log/trace (trs "Computed response: {0}" resp))
       resp)))
 
 (schema/defn ^:always-validate wrap-proxy :- IFn
@@ -116,7 +117,7 @@
     type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error "Submitted data is invalid:" (:msg e))
+                    (log/error (trs "Submitted data is invalid: {0}" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -141,7 +142,7 @@
     type :- utils/ResponseType]
    (let [code 503
          response (fn [e]
-                    (log/error "Service Unavailable:" (:msg e))
+                    (log/error (trs "Service Unavailable:" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -160,7 +161,7 @@
     type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error "Bad Request:" (:msg e))
+                    (log/error (trs "Bad Request:" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -178,7 +179,7 @@
     type :- utils/ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Something unexpected happened: "
+                    (let [msg (trs "Something unexpected happened: {0}"
                                    (select-keys e [:error :value :type]))]
                       (log/error msg)
                       (case type
@@ -200,7 +201,7 @@
     type :- utils/ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (str "Internal Server Error: " e)]
+                    (let [msg (trs "Internal Server Error: {0}" e)]
                       (log/error msg)
                       (case type
                         :json (utils/json-response code

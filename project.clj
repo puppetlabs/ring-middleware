@@ -17,14 +17,15 @@
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/ssl-utils "0.8.1"]
                  [ring "1.4.0"]
-                 [slingshot "0.12.2"]]
+                 [slingshot "0.12.2"]
+                 [puppetlabs/i18n "0.4.1"]]
 
   ;; Abort when version ranges or version conflicts are detected in
   ;; dependencies. Also supports :warn to simply emit warnings.
   ;; requires lein 2.2.0+.
   :pedantic? :abort
 
-  :plugins [[lein-release "1.0.5"]]
+  :plugins [[puppetlabs/i18n "0.4.1"]]
 
   :deploy-repositories [["releases" {:url "https://clojars.org/repo"
                                      :username :env/clojars_jenkins_username
