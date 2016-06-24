@@ -1,7 +1,8 @@
 (ns puppetlabs.ring-middleware.common
   (:require [clojure.tools.logging :as log]
             [clojure.string :refer [join split replace-first]]
-            [puppetlabs.http.client.sync :refer [request]])
+            [puppetlabs.http.client.sync :refer [request]]
+            [puppetlabs.i18n.core :as i18n :refer [trs]])
   (:import (java.net URI)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48,6 +49,5 @@
                             http-opts)
                      request
                      prepare-cookies)]
-    (log/debug "Proxying request to" (:uri req) "to remote url" (str remote-uri)
-               ". Remote server responded with status" (:status response))
+    (log/debug (trs "Proxying request to {0} to remote url {1}. Remote server responded with status {2}" (:uri req) (str remote-uri) (:status response)))
     response))
