@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "file_format": "This MAINTAINERS file format is described at http://pup.pt/maintainers",
+  "issues": "https://tickets.puppetlabs.com/browse/TK",
+  "people": [
+    {
+      "github": "justinstoller",
+      "email": "justin@puppet.com",
+      "name": "Justin Stoller"
+    },
+    {
+      "github": "KevinCorcoran",
+      "email": "kevin.corcoran@puppet.com",
+      "name": "Kevin Corcoran"
+    }
+  ]
+}
