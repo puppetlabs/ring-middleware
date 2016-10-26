@@ -13,7 +13,7 @@
                  [org.clojure/tools.logging "0.3.1"]
                  [prismatic/schema "1.1.0"]
 
-                 [puppetlabs/http-client "0.5.0"]
+                 [puppetlabs/http-client "0.6.0"]
                  [puppetlabs/kitchensink ~ks-version]
                  [puppetlabs/ssl-utils "0.8.1"]
                  [ring "1.4.0"]
