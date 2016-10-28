@@ -202,7 +202,7 @@
    (let [code 500
          response (fn [e]
                     (let [msg (trs "Internal Server Error: {0}" e)]
-                      (log/error msg)
+                      (log/error e msg)
                       (case type
                         :json (utils/json-response code
                                                    {:kind :application-error
