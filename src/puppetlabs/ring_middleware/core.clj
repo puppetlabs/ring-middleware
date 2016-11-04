@@ -117,7 +117,7 @@
     type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error (trs "Submitted data is invalid: {0}" (:msg e)))
+                    (log/error e (trs "Submitted data is invalid: {0}" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -142,7 +142,7 @@
     type :- utils/ResponseType]
    (let [code 503
          response (fn [e]
-                    (log/error (trs "Service Unavailable:" (:msg e)))
+                    (log/error e (trs "Service Unavailable:" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -161,7 +161,7 @@
     type :- utils/ResponseType]
    (let [code 400
          response (fn [e]
-                    (log/error (trs "Bad Request:" (:msg e)))
+                    (log/error e (trs "Bad Request:" (:msg e)))
                     (case type
                       :json (utils/json-response code e)
                       :plain (utils/plain-response code (:msg e))))]
@@ -181,7 +181,7 @@
          response (fn [e]
                     (let [msg (trs "Something unexpected happened: {0}"
                                    (select-keys e [:error :value :type]))]
-                      (log/error msg)
+                      (log/error e msg)
                       (case type
                         :json (utils/json-response code
                                                    {:kind :application-error
@@ -202,7 +202,7 @@
    (let [code 500
          response (fn [e]
                     (let [msg (trs "Internal Server Error: {0}" e)]
-                      (log/error msg)
+                      (log/error e msg)
                       (case type
                         :json (utils/json-response code
                                                    {:kind :application-error
