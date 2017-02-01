@@ -626,7 +626,7 @@
               response (stack (basic-request))
               json-body (json/parse-string (response :body))]
           (is (= 500 (response :status)))
-          (is (logged? #".*Internal Server Error.*" :warn))
+          (is (logged? #".*Internal Server Error.*" :error))
           (is (re-matches #"Internal Server Error.*" (get json-body "msg" ""))))))
     (testing "can be plain text"
       (logutils/with-test-logging
