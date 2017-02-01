@@ -38,7 +38,9 @@
   ([subject method uri]
    {:request-method method
     :uri uri
-    :ssl-client-cert (:cert (ssl-simple/gen-self-signed-cert subject 1))
+    :ssl-client-cert (:cert (ssl-simple/gen-self-signed-cert subject
+                                                             1
+                                                             {:keylength 512}))
     :authorization {:certificate "foo"}}))
 
 (defn post-target-handler
@@ -139,7 +141,7 @@
        (add-ring-handler
         target-webserver#
         post-target-handler
-        "/hello/post/"))
+        "/hello/post"))
      (with-app-with-config proxy-app#
        [jetty9-service]
        {:webserver ~proxy}
