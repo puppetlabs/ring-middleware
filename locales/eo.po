@@ -1,0 +1,56 @@
+# Esperanto translations for puppetlabs.ring_middleware package.
+# Copyright (C) 2017 Puppet <docs@puppet.com>
+# This file is distributed under the same license as the puppetlabs.ring_middleware package.
+# Automatically generated, 2017.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: puppetlabs.ring_middleware \n"
+"Report-Msgid-Bugs-To: docs@puppet.com\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: eo\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/puppetlabs/ring_middleware/common.clj
+msgid ""
+"Proxying request to {0} to remote url {1}. Remote server responded with "
+"status {2}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Processing {0} {1}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Full request:"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Computed response: {0}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Submitted data is invalid: {0}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Service Unavailable:"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Bad Request:"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Something unexpected happened: {0}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Internal Server Error: {0}"
+msgstr ""
