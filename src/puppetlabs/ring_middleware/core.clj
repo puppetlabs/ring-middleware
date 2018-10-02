@@ -11,6 +11,7 @@
             [puppetlabs.i18n.core :as i18n :refer [trs]]
             [slingshot.slingshot :as sling])
   (:import (clojure.lang IFn ExceptionInfo)
+           (java.io ByteArrayOutputStream PrintStream)
            (java.lang Exception)
            (java.util.regex Pattern)
            (java.security.cert X509Certificate)))
@@ -201,8 +202,11 @@
     type :- utils/ResponseType]
    (let [code 500
          response (fn [e]
-                    (let [msg (trs "Internal Server Error: {0}" e)]
-                      (log/error e msg)
+                    (let [msg (trs "Internal Server Error: {0}" (.toString e))
+                          baos (ByteArrayOutputStream.)
+                          _ (->> baos (PrintStream.) (.printStackTrace e))
+                          log-msg (trs "Internal Server Error: {0}" (.toString baos))]
+                      (log/error log-msg)
                       (case type
                         :json (utils/json-response code
                                                    {:kind :application-error
