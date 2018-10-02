@@ -1,3 +1,7 @@
+# 1.0.1
+* This is a bug fix release that ensure stacktraces are correctly printed
+  to the log when handling otherwise uncaught exceptions.
+
 # 1.0.0
 #### Breaking Changes
 * Moves from `{:type ... :message ...}` to `{:kind ... :msg ...}` for
