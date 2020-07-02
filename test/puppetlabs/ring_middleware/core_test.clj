@@ -470,6 +470,76 @@
         (is (= not-handled-response (wrapped-handler post-request)))
         (is (= not-handled-response (wrapped-handler delete-request)))))))
 
+(deftest test-wrap-add-x-content-nosniff
+  (let [put-request     {:request-method :put}
+        get-request     {:request-method :get}
+        post-request    {:request-method :post}
+        delete-request  {:request-method :delete}]
+    (testing "wrap-add-x-content-nosniff ignores nil response"
+      (let [handler (constantly nil)
+            wrapped-handler (core/wrap-add-x-content-nosniff handler)]
+        (is (nil? (wrapped-handler put-request)))
+        (is (nil? (wrapped-handler get-request)))
+        (is (nil? (wrapped-handler post-request)))
+        (is (nil? (wrapped-handler delete-request)))))
+    (testing "wrap-add-x-content-nosniff observes handled response"
+      (let [handler              (constantly {})
+            wrapped-handler      (core/wrap-add-x-content-nosniff handler)
+            handled-response     {:headers {"X-Content-Type-Options" "nosniff"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-x-content-nosniff doesn't stomp on existing headers"
+      (let [fake-response        {:headers {:something "Hi mom"}}
+            handler              (constantly fake-response)
+            wrapped-handler      (core/wrap-add-x-content-nosniff handler)
+            handled-response     {:headers {:something      "Hi mom"
+                                            "X-Content-Type-Options" "nosniff"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))))
+
+(deftest test-wrap-add-csp
+  (let [put-request     {:request-method :put}
+        get-request     {:request-method :get}
+        post-request    {:request-method :post}
+        delete-request  {:request-method :delete}]
+    (testing "wrap-add-csp ignores nil response"
+      (let [handler (constantly nil)
+            wrapped-handler (core/wrap-add-csp handler "foo")]
+        (is (nil? (wrapped-handler put-request)))
+        (is (nil? (wrapped-handler get-request)))
+        (is (nil? (wrapped-handler post-request)))
+        (is (nil? (wrapped-handler delete-request)))))
+    (testing "wrap-add-csp observes handled response"
+      (let [handler              (constantly {})
+            wrapped-handler      (core/wrap-add-csp handler "foo")
+            handled-response     {:headers {"Content-Security-Policy" "foo"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-csp doesn't stomp on existing headers"
+      (let [fake-response        {:headers {:something "Hi mom"}}
+            handler              (constantly fake-response)
+            wrapped-handler      (core/wrap-add-csp handler "foo")
+            handled-response     {:headers {:something      "Hi mom"
+                                            "Content-Security-Policy" "foo"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-csp takes arg for header value"
+      (let [handler              (constantly {})
+            wrapped-handler      (core/wrap-add-csp handler "bar")
+            handled-response     {:headers {"Content-Security-Policy" "bar"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))))
+
 (deftest test-wrap-with-cn
   (testing "When extracting a CN from a cert"
     (testing "and there is no cert"

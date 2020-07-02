@@ -184,6 +184,27 @@ A utility middleware with the following signature:
 
 This middleware adds `X-Frame-Options: DENY` headers to requests if they are handled by the handler.
 
+### wrap-add-x-content-nosniff
+
+A utility middleware with the following signature:
+
+```clj
+(wrap-add-x-content-nosniff handler)
+```
+
+This middleware adds `X-Content-Type-Options: nosniff` headers to requests if they are handled by the handler.
+
+### wrap-add-csp
+
+A utility middleware with the following signature:
+
+```clj
+(wrap-add-csp handler csp-val)
+```
+
+This middleware adds `Content-Security-Policy` headers to requests if they are handled by the handler.
+The value of the header will be equivalent to the second argument passed, `csp-val`.
+
 ### wrap-data-errors
 ```clj
 (wrap-data-errors handler)
