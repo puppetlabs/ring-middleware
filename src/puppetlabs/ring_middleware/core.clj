@@ -92,6 +92,23 @@
       (when response
         (assoc-in response [:headers "X-Frame-Options"] "DENY")))))
 
+(schema/defn ^:always-validate wrap-add-x-content-nosniff :- IFn
+  "Adds 'X-Content-Type-Options: nosniff' headers to request."
+  [handler :- IFn]
+  (fn [request]
+    (let [response (handler request)]
+      (when response
+        (assoc-in response [:headers "X-Content-Type-Options"] "nosniff")))))
+
+(schema/defn ^:always-validate wrap-add-csp :- IFn
+  "Adds 'Content-Security-Policy: default-src 'self'' headers to request."
+  [handler :- IFn
+   csp-val]
+  (fn [request]
+    (let [response (handler request)]
+      (when response
+        (assoc-in response [:headers "Content-Security-Policy"] csp-val)))))
+
 (schema/defn ^:always-validate wrap-with-certificate-cn :- IFn
   "Ring middleware that will annotate the request with an
   :ssl-client-cn key representing the CN contained in the client
