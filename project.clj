@@ -1,4 +1,4 @@
-(defproject puppetlabs/ring-middleware "1.0.2-SNAPSHOT"
+(defproject puppetlabs/ring-middleware "1.0.2"
   :dependencies [[org.clojure/clojure]
                  [org.clojure/tools.logging]
                  [cheshire]
