@@ -1,7 +1,7 @@
-# Unreleased
-* Added `wrap-params` middleware with custom implementation of the
+# 1.2.0
+* This version adds `wrap-params` middleware with custom implementation of the
   `params-request` function. This was copied from the puppetserver repo to this
-  more-central location.
+  more-central location. It is documented in the [README](./README.md).
 
 # 1.1.0
 * This version adds two new middleware used in other
