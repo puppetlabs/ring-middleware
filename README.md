@@ -205,6 +205,24 @@ A utility middleware with the following signature:
 This middleware adds `Content-Security-Policy` headers to requests if they are handled by the handler.
 The value of the header will be equivalent to the second argument passed, `csp-val`.
 
+### wrap-params
+
+A utility middleware with the following signature:
+
+```clj
+(wrap-params handler & [options])
+```
+
+This middleware parses url-encoded parameters from the query string and form body
+and adds the following keys to the request map:
+  * `:query-params` - a map of parameters from the query string
+  * `:form-params` - a map of parameters from the body
+  * `:params` - a map of all types of parameter
+
+Accepts the following options:
+  * `:encoding` - encoding to use for url-decoding. If not specified, uses the request
+                  character encoding, or "UTF-8" if no request charater encoding is set.
+
 ### wrap-data-errors
 ```clj
 (wrap-data-errors handler)

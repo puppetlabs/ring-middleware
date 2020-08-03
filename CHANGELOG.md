@@ -1,9 +1,13 @@
+# Unreleased
+* Added `wrap-params` middleware with custom implementation of the
+  `params-request` function. This was copied from the puppetserver repo to this
+  more-central location.
+
 # 1.1.0
 * This version adds two new middleware used in other
   puppetlabs projects, documented in the [README](./README.md):
   * `wrap-add-x-content-nosniff`
   * `wrap-add-csp`
-
 
 # 1.0.1
 * This is a bug fix release that ensure stacktraces are correctly printed
