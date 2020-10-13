@@ -1,3 +1,8 @@
+# 1.3.0
+* This version updates the `wrap-add-cache-headers` middleware so that
+  it adds a `cache-control` header with the "no-store" directive instead of
+  the "private, max-age=0, no-cache" directives.
+
 # 1.2.0
 * This version adds `wrap-params` middleware with custom implementation of the
   `params-request` function. This was copied from the puppetserver repo to this
