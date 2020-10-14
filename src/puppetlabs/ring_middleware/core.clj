@@ -81,7 +81,7 @@
         (if (or
              (= request-method :get)
              (= request-method :put))
-          (assoc-in response [:headers "cache-control"] "private, max-age=0, no-cache")
+          (assoc-in response [:headers "cache-control"] "no-store")
           response)))))
 
 (schema/defn ^:always-validate wrap-add-x-frame-options-deny :- IFn

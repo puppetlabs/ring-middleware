@@ -441,7 +441,7 @@
         get-request     {:request-method :get}
         post-request    {:request-method :post}
         delete-request  {:request-method :delete}
-        no-cache-header "private, max-age=0, no-cache"]
+        no-cache-header "no-store"]
     (testing "wrap-add-cache-headers ignores nil response"
       (let [handler (constantly nil)
             wrapped-handler (core/wrap-add-cache-headers handler)]
