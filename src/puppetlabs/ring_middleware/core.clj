@@ -234,3 +234,11 @@
                    (catch Exception e
                      (response e)))))))
 
+(schema/defn ^:always-validate wrap-add-referrer-policy :- IFn
+  "Adds referrer policy to the header as 'Referrer-Policy: no-referrer' or 'Referrer-Policy: same-origin'"
+  [policy-option :- schema/Str
+   handler :- IFn]
+  (fn [request]
+    (let [response (handler request)]
+      (when-not (nil? response)
+        (assoc-in response [:headers "Referrer-Policy"] policy-option)))))
