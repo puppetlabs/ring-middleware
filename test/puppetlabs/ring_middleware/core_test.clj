@@ -710,3 +710,42 @@
         (let [stack (core/wrap-uncaught-errors (fn [_] (throw (IllegalStateException. "Woah..."))) :plain)
               response (stack (basic-request))]
           (is (re-matches #"text/plain.*" (get-in response [:headers "Content-Type"]))))))))
+
+(deftest test-wrap-add-referrer-policy
+  (let [get-request {:request-method :get}
+        put-request {:request-method :put}
+        post-request {:request-method :post}
+        delete-request {:request-method :delete}]
+    (testing "wrap-add-referrer-policy observes handled response"
+      (let [handler (constantly {})
+            wrapped-handler (core/wrap-add-referrer-policy "no-referrer" handler)
+            handled-response {:headers {"Referrer-Policy" "no-referrer"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-referrer-policy observes handled dynamic response"
+      (let [handler (constantly {})
+            wrapped-handler (core/wrap-add-referrer-policy "same-origin" handler)
+            handled-response {:headers {"Referrer-Policy" "same-origin"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))
+    (testing "wrap-add-referrer-policy ignores nil response"
+      (let [handler (constantly nil)
+            wrapped-handler (core/wrap-add-referrer-policy "same-origin" handler)]
+        (is (nil? (wrapped-handler get-request)))
+        (is (nil? (wrapped-handler put-request)))
+        (is (nil? (wrapped-handler post-request)))
+        (is (nil? (wrapped-handler delete-request)))))
+    (testing "wrap-add-referrer-policy doesn't stomp existing headers"
+      (let [fake-response {:headers {:something "hi there"}}
+            handler (constantly fake-response)
+            wrapped-handler (core/wrap-add-referrer-policy "same-origin" handler)
+            handled-response {:headers {:something "hi there"
+                                        "Referrer-Policy" "same-origin"}}]
+        (is (= handled-response (wrapped-handler get-request)))
+        (is (= handled-response (wrapped-handler put-request)))
+        (is (= handled-response (wrapped-handler post-request)))
+        (is (= handled-response (wrapped-handler delete-request)))))))
