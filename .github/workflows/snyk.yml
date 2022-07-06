@@ -1,0 +1,28 @@
+# auto generated for: puppetlabs/ring-middleware
+name: snyk_pr
+ 
+on:
+ workflow_dispatch:
+ push:
+    branches:
+      - main
+ 
+jobs:
+ snyk_clojure:
+   runs-on: ubuntu-latest
+   steps:
+    - name: checkout the current PR
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+        persist-credentials: false
+    - name: Run Clojure Snyk Scan
+      id: scan
+      uses: puppetlabs/security-snyk-clojure-action@v2
+      with:
+        snykToken: ${{ secrets.SNYK_PE_TOKEN }}
+        snykPolicy: '.snyk'
+    - name: Check output
+      if: steps.scan.outputs.vulns != ''
+      run: echo "Vulnerabilities detected; ${{ steps.scan.outputs.vulns }}" && exit 1  
+
