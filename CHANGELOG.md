@@ -1,3 +1,8 @@
+# 2.0.0
+
+* This version updates testing in the repo to use trapperkeeper-webserver-jetty10. The repo
+  is now intended to be used with Jetty 10.
+
 # 1.3.0
 * This version updates the `wrap-add-cache-headers` middleware so that
   it adds a `cache-control` header with the "no-store" directive instead of
