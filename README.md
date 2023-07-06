@@ -4,7 +4,7 @@
 
 This project was originally adapted from tailrecursion's
 [ring-proxy](https://github.com/tailrecursion/ring-proxy) middleware, and is
-meant for use with the [Trapperkeeper Jetty9 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty9).  It also contains common ring middleware between Puppet projects and helpers to be used with the middleware.
+meant for use with the [Trapperkeeper Jetty10 Webservice](https://github.com/puppetlabs/trapperkeeper-webserver-jetty10).  It also contains common ring middleware between Puppet projects and helpers to be used with the middleware.
 
 ## Usage
 
