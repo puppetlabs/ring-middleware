@@ -1,4 +1,4 @@
-(defproject puppetlabs/ring-middleware "2.0.0-SNAPSHOT"
+(defproject puppetlabs/ring-middleware "2.0.0"
   :dependencies [[cheshire]]
 
   :min-lein-version "2.7.1"
