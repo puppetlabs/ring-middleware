@@ -1,3 +1,6 @@
+# 2.0.2
+* Updates tk-jetty-10 to 1.0.8 which sets the default character encoding for ring handler responses to UTF-8.
+
 # 2.0.1
 * Updates tk-jetty-10 to 1.0.7 which includes a fix for ring handler's getRequestCharacterEncoding() function.
 
