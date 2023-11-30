@@ -20,7 +20,7 @@
                                      :sign-releases false}]
                         ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
 
-  :profiles {:dev {:dependencies [[com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.1"]
+  :profiles {:dev {:dependencies [[com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.7"]
                                   [org.bouncycastle/bcpkix-jdk15on]
                                   [puppetlabs/kitchensink nil :classifier "test" :scope "test"]
                                   [puppetlabs/trapperkeeper nil :classifier "test" :scope "test"]

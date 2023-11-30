@@ -1,3 +1,6 @@
+# 2.0.1
+* Updates tk-jetty-10 to 1.0.7 which includes a fix for ring handler's getRequestCharacterEncoding() function.
+
 # 2.0.0
 
 * This version updates testing in the repo to use trapperkeeper-webserver-jetty10. The repo
