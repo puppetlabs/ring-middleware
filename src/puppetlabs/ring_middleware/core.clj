@@ -1,22 +1,17 @@
 (ns puppetlabs.ring-middleware.core
-  (:require [cheshire.core :as json]
-            [clojure.tools.logging :as log]
+  (:require [clojure.tools.logging :as log]
+            [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.ring-middleware.common :as common]
             [puppetlabs.ring-middleware.utils :as utils]
             [puppetlabs.ssl-utils.core :as ssl-utils]
             [ring.middleware.cookies :as cookies]
-            [ring.util.response :as rr]
             [schema.core :as schema]
-            [puppetlabs.i18n.core :as i18n :refer [trs]]
             [slingshot.slingshot :as sling])
-  (:import (clojure.lang IFn ExceptionInfo)
+  (:import (clojure.lang IFn)
            (java.io ByteArrayOutputStream PrintStream)
            (java.lang Exception)
-           (java.util.regex Pattern)
-           (java.security.cert X509Certificate)))
-
-
+           (java.util.regex Pattern)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Private

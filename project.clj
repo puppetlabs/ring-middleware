@@ -3,7 +3,7 @@
 
   :min-lein-version "2.7.1"
 
-  :parent-project {:coords [puppetlabs/clj-parent "7.0.1"]
+  :parent-project {:coords [puppetlabs/clj-parent "7.3.31"]
                    :inherit [:managed-dependencies]}
 
   ;; Abort when version ranges or version conflicts are detected in
@@ -20,8 +20,8 @@
                                      :sign-releases false}]
                         ["snapshots" "http://nexus.delivery.puppetlabs.net/content/repositories/snapshots/"]]
 
-  :profiles {:dev {:dependencies [[com.puppetlabs/trapperkeeper-webserver-jetty10 "1.0.7"]
-                                  [org.bouncycastle/bcpkix-jdk15on]
+  :profiles {:dev {:dependencies [[com.puppetlabs/trapperkeeper-webserver-jetty10]
+                                  [org.bouncycastle/bcpkix-jdk18on]
                                   [puppetlabs/kitchensink nil :classifier "test" :scope "test"]
                                   [puppetlabs/trapperkeeper nil :classifier "test" :scope "test"]
                                   [compojure]]}})
