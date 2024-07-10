@@ -5,7 +5,9 @@
 
   :parent-project {:coords [puppetlabs/clj-parent "7.3.31"]
                    :inherit [:managed-dependencies]}
-
+  :license {:name "Apache-2.0"
+            :url "https://www.apache.org/licenses/LICENSE-2.0.txt"}
+          
   ;; Abort when version ranges or version conflicts are detected in
   ;; dependencies. Also supports :warn to simply emit warnings.
   ;; requires lein 2.2.0+.
