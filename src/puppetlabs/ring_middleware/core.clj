@@ -205,6 +205,20 @@
                    (catch utils/schema-error? e
                      (response e)))))))
 
+(defn handle-error-response
+  [e type]
+  (with-open [baos (ByteArrayOutputStream.)
+              print-stream (PrintStream. baos)]
+    (.printStackTrace e print-stream)
+    (let [code 500
+          msg (trs "Internal Server Error: {0}" (.toString e))]
+      (log/error (trs "Internal Server Error: {0}" (.toString baos)))
+      (case type
+        :json (utils/json-response code
+                                   {:kind :application-error
+                                    :msg msg})
+        :plain (utils/plain-response code msg)))))
+
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
   returns a 500 response with the error message"
@@ -212,22 +226,11 @@
    (wrap-uncaught-errors handler :json))
   ([handler :- IFn
     type :- utils/ResponseType]
-   (let [code 500
-         response (fn [e]
-                    (let [msg (trs "Internal Server Error: {0}" (.toString e))
-                          baos (ByteArrayOutputStream.)
-                          _ (->> baos (PrintStream.) (.printStackTrace e))
-                          log-msg (trs "Internal Server Error: {0}" (.toString baos))]
-                      (log/error log-msg)
-                      (case type
-                        :json (utils/json-response code
-                                                   {:kind :application-error
-                                                    :msg msg})
-                        :plain (utils/plain-response code msg))))]
-     (fn [request]
-       (sling/try+ (handler request)
-                   (catch Exception e
-                     (response e)))))))
+    (fn [request]
+      (try
+        (handler request)
+        (catch Throwable e
+          (handle-error-response e type))))))
 
 (schema/defn ^:always-validate wrap-add-referrer-policy :- IFn
   "Adds referrer policy to the header as 'Referrer-Policy: no-referrer' or 'Referrer-Policy: same-origin'"
