@@ -1,5 +1,6 @@
 (ns puppetlabs.ring-middleware.core
-  (:require [clojure.tools.logging :as log]
+  (:require [clojure.string :as str]
+            [clojure.tools.logging :as log]
             [puppetlabs.i18n.core :refer [trs]]
             [puppetlabs.kitchensink.core :as ks]
             [puppetlabs.ring-middleware.common :as common]
@@ -9,9 +10,17 @@
             [schema.core :as schema]
             [slingshot.slingshot :as sling])
   (:import (clojure.lang IFn)
+           (com.fasterxml.jackson.core JsonParseException)
            (java.io ByteArrayOutputStream PrintStream)
-           (java.lang Exception)
            (java.util.regex Pattern)))
+
+(def json-encoding-type "application/json")
+;; HTTP error codes
+(def InternalServiceError 500)
+(def ServiceUnavailable 503)
+(def BadRequest 400)
+(def NotAcceptable 406)
+(def UnsupportedMediaType 415)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; Private
@@ -123,17 +132,16 @@
     :user-data-invalid
     :data-invalid
     :service-status-version-not-found
-  logs the error and returns a 400 ring response."
+  logs the error and returns a BadRequest ring response."
   ([handler :- IFn]
    (wrap-data-errors handler :json))
   ([handler :- IFn
     type :- utils/ResponseType]
-   (let [code 400
-         response (fn [e]
+   (let [response (fn [e]
                     (log/error e (trs "Submitted data is invalid: {0}" (:msg e)))
                     (case type
-                      :json (utils/json-response code e)
-                      :plain (utils/plain-response code (:msg e))))]
+                      :json (utils/json-response BadRequest e)
+                      :plain (utils/plain-response BadRequest (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch
@@ -147,18 +155,17 @@
 
 (schema/defn ^:always-validate wrap-service-unavailable :- IFn
   "A ring middleware that catches slingshot errors thrown by
-  utils/throw-service-unavailabe!, logs the error and returns a 503 ring
+  utils/throw-service-unavailabe!, logs the error and returns a ServiceUnavailable ring
   response."
   ([handler :- IFn]
    (wrap-service-unavailable handler :json))
   ([handler :- IFn
     type :- utils/ResponseType]
-   (let [code 503
-         response (fn [e]
+   (let [response (fn [e]
                     (log/error e (trs "Service Unavailable:" (:msg e)))
                     (case type
-                      :json (utils/json-response code e)
-                      :plain (utils/plain-response code (:msg e))))]
+                      :json (utils/json-response ServiceUnavailable e)
+                      :plain (utils/plain-response ServiceUnavailable (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch utils/service-unavailable? e
@@ -166,40 +173,38 @@
 
 (schema/defn ^:always-validate wrap-bad-request :- IFn
   "A ring middleware that catches slingshot errors thrown by
-  utils/throw-bad-request!, logs the error and returns a 503 ring
+  utils/throw-bad-request!, logs the error and returns a BadRequest ring
   response."
   ([handler :- IFn]
    (wrap-bad-request handler :json))
   ([handler :- IFn
     type :- utils/ResponseType]
-   (let [code 400
-         response (fn [e]
+   (let [response (fn [e]
                     (log/error e (trs "Bad Request:" (:msg e)))
                     (case type
-                      :json (utils/json-response code e)
-                      :plain (utils/plain-response code (:msg e))))]
+                      :json (utils/json-response BadRequest e)
+                      :plain (utils/plain-response BadRequest (:msg e))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch utils/bad-request? e
                      (response e)))))))
 
 (schema/defn ^:always-validate wrap-schema-errors :- IFn
-  "A ring middleware that catches schema errors and returns a 500
+  "A ring middleware that catches schema errors and returns a InternalServiceError
   response with the details"
   ([handler :- IFn]
    (wrap-schema-errors handler :json))
   ([handler :- IFn
     type :- utils/ResponseType]
-   (let [code 500
-         response (fn [e]
+   (let [response (fn [e]
                     (let [msg (trs "Something unexpected happened: {0}"
                                    (select-keys e [:error :value :type]))]
                       (log/error e msg)
                       (case type
-                        :json (utils/json-response code
+                        :json (utils/json-response InternalServiceError
                                                    {:kind :application-error
                                                     :msg msg})
-                        :plain (utils/plain-response code msg))))]
+                        :plain (utils/plain-response InternalServiceError msg))))]
      (fn [request]
        (sling/try+ (handler request)
                    (catch utils/schema-error? e
@@ -210,18 +215,17 @@
   (with-open [baos (ByteArrayOutputStream.)
               print-stream (PrintStream. baos)]
     (.printStackTrace e print-stream)
-    (let [code 500
-          msg (trs "Internal Server Error: {0}" (.toString e))]
+    (let [msg (trs "Internal Server Error: {0}" (.toString e))]
       (log/error (trs "Internal Server Error: {0}" (.toString baos)))
       (case type
-        :json (utils/json-response code
+        :json (utils/json-response InternalServiceError
                                    {:kind :application-error
                                     :msg msg})
-        :plain (utils/plain-response code msg)))))
+        :plain (utils/plain-response InternalServiceError msg)))))
 
 (schema/defn ^:always-validate wrap-uncaught-errors :- IFn
   "A ring middleware that catches all otherwise uncaught errors and
-  returns a 500 response with the error message"
+  returns a InternalServiceError response with the error message"
   ([handler :- IFn]
    (wrap-uncaught-errors handler :json))
   ([handler :- IFn
@@ -240,3 +244,80 @@
     (let [response (handler request)]
       (when-not (nil? response)
         (assoc-in response [:headers "Referrer-Policy"] policy-option)))))
+
+(def superwildcard "*/*")
+
+(defn acceptable-content-type
+  "Returns a boolean indicating whether the `candidate` mime type
+  matches any of those listed in `header`, an Accept header."
+  [candidate header]
+  (if-not (string? header)
+    true
+    (let [[prefix] (.split ^String candidate "/")
+          wildcard (str prefix "/*")
+          types (->> (str/split header #",")
+                     (map #(.trim ^String %))
+                     (set))]
+      (or (types superwildcard)
+          (types wildcard)
+          (types candidate)))))
+
+(defn wrap-accepts-content-type
+  "Ring middleware that requires a request for the wrapped `handler` to accept the
+  provided `content-type`. If the content type isn't acceptable, a 406 Not
+  Acceptable status is returned, with a message informing the client it must
+  accept the content type."
+  [handler content-type]
+  (fn [{:keys [headers] :as req}]
+    (if (acceptable-content-type
+          content-type
+          (get headers "accept"))
+      (handler req)
+      (utils/json-response NotAcceptable
+                           {:kind    "not-acceptable"
+                            :msg     (trs "accept header must include {0}" content-type)}))))
+
+(def wrap-accepts-json
+  "Ring middleware which requires a request for `handler` to accept
+  application/json as a content type. If the request doesn't accept
+  application/json, a 406 Not Acceptable status is returned with an error
+  message indicating the problem."
+  (fn [handler]
+    (wrap-accepts-content-type handler json-encoding-type)))
+
+(defn wrap-content-type
+  "Verification for the specified list of content-types."
+  [handler content-types]
+  {:pre [(coll? content-types)
+         (every? string? content-types)]}
+  (fn [{:keys [headers] :as req}]
+    (if (or (= (:request-method req) :post) (= (:request-method req) :put))
+      (let [content-type (get headers "content-type")
+            media-type (when-not (nil? content-type)
+                        (ks/base-type content-type))]
+        (if (or (nil? media-type) (some #{media-type} content-types))
+          (handler req)
+          (utils/json-response UnsupportedMediaType
+                               {:kind    "unsupported-type"
+                                :msg     (trs "content-type {0} is not a supported type for request of type {1} at {2}"
+                                              media-type (:request-method req) (:uri req))})))
+      (handler req))))
+
+(def wrap-content-type-json
+  "Ring middleware which requires a request for `handler` to accept
+  application/json as a content-type.  If the request doesn't specify
+  a content-type of application/json a 415 Unsupported Type status is returned."
+  (fn [handler]
+    (wrap-content-type handler [json-encoding-type])))
+
+(def wrap-json-parse-exception-handler
+  "Ring middleware which catches JsonParseExceptions and returns a predictable result"
+  (fn [handler]
+    (fn [req]
+      (try
+        (handler req)
+        (catch JsonParseException e
+          (log/debug e (trs "Failed to parse json for request of type {0} at {1}" (:request-method req) (:uri req)))
+          (utils/json-response BadRequest
+                               {:kind    :json-parse-exception
+                                :msg     (.getMessage e)}))))))
