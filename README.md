@@ -321,6 +321,55 @@ Returns valid [`ResponseType`](#schemas)s, eg:
 ```clj
 (wrap-uncaught-errors handler :plain)
 ```
+### wrap-accepts-content-type
+```clj
+(wrap-accepts-content-type handler content-type)
+```
+Returns a wrapper that evaluates the accept header of the incoming request and validate that it accepts a type
+that this endpoint will produce.
+
+For example, if the endpoint will accept json
+```clj
+(wrap-accepts-content-type handler "application/json")
+```
+
+If the request supplies a result with `text/plain` a `406 not-acceptable` error will be returned
+
+### wrap-accepts-json
+```clj
+(wrap-accepts-json handler)
+```
+Returns a wrapper that evaluates the accept header of the incoming request and validates
+that it matches `application/json`
+
+If it doesn't, a response with a `406 not acceptable` is returned.
+
+### wrap-content-type
+```clj
+(wrap-content-type handler <sequence of content types>)
+```
+
+Ensure that the content type of the body of the incoming request matches the acceptable
+content types this endpoint supports.
+For example:
+```clj
+(wrap-content-type handler [json-encoding-type])
+```
+If the content type is not matched, a `415 Unsupported Media Type` is returned.
+
+### wrap-content-type-json
+```clj
+(wrap-content-type-json handler)
+```
+Ensure that the content type of the body of the incoming request matches the a json type.
+If the content type is not matched, a `415 Unsupported Media Type` is returned.
+
+### wrap-json-parse-exception-handler
+```clj
+(wrap-json-parse-exception-handler handler)
+```
+Ensure that if a JsonParseException is thrown while the handler is being executed, an 
+appropriate error is returned.  a `400 Bad Request` with appropriate messaging will be returned.
 
 ## Support
 

@@ -15,7 +15,8 @@
             [puppetlabs.trapperkeeper.testutils.logging :as logutils]
             [ring.util.response :as rr]
             [schema.core :as schema]
-            [slingshot.slingshot :as slingshot]))
+            [slingshot.slingshot :as slingshot])
+  (:import (com.fasterxml.jackson.core JsonFactory JsonLocation JsonParseException JsonParser)))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -749,3 +750,55 @@
         (is (= handled-response (wrapped-handler put-request)))
         (is (= handled-response (wrapped-handler post-request)))
         (is (= handled-response (wrapped-handler delete-request)))))))
+
+(deftest wrap-accepts-json-test
+  (let [request (fn [method a] {:request-method method :headers {"accept" a}})
+        handler (constantly nil)
+        wrapped-handler (core/wrap-accepts-json handler)]
+    (testing "wrap-accepts-json allows json"
+      (let []
+        (doseq [method [:get :put :post :delete]]
+          (is (nil? (wrapped-handler (request method "application/json"))))
+          (is (nil? (wrapped-handler (request method "text/html, application/json"))))
+          (is (nil? (wrapped-handler (request method "application/*"))))
+          (is (nil? (wrapped-handler (request method "*/*")))))))
+    (testing "wrap-accepts-json rejects non-json"
+      (let [rejection-expectation
+            {:body    "{\"kind\":\"not-acceptable\",\"msg\":\"accept header must include application/json\"}"
+             :headers {"Content-Type" "application/json; charset=utf-8"}
+             :status  406}]
+        (doseq [method [:get :put :post :delete]]
+          (let [result (wrapped-handler (request method "text/html"))]
+            (is (= rejection-expectation result))))))))
+
+(deftest wrap-content-type-json-test
+  (let [request (fn [method a] {:request-method method :headers {"content-type" a} :uri "http://example.com"})
+        handler (constantly nil)
+        wrapped-handler (core/wrap-content-type-json handler)]
+   (testing "wrap-content-type-json allows json"
+     (let []
+       (doseq [method [:put :post]]
+         (is (nil? (wrapped-handler (request method "application/json")))))
+       ;; content-type is ignored for get and delete
+       (doseq [method [:get :delete]]
+         (is (nil? (wrapped-handler (request method "text/html, application/json"))))
+         (is (nil? (wrapped-handler (request method "application/*"))))
+         (is (nil? (wrapped-handler (request method "*/*"))))))
+   (testing "wrap-content-type-json rejects non-json"
+     (let [rejection-expectation
+           (fn [method]
+             {:body    (str "{\"kind\":\"unsupported-type\",\"msg\":\"content-type text/html is not a supported type for request of type " method " at http://example.com\"}")
+             :headers {"Content-Type" "application/json; charset=utf-8"}
+             :status  415})]
+       (doseq [method [:put :post]]
+         (let [result (wrapped-handler (request method "text/html"))]
+           (is (= (rejection-expectation method) result)))))))))
+
+(deftest wrap-json-parse-exception-handler-test
+  (let [factory (JsonFactory.)
+        wrapped-handler (core/wrap-json-parse-exception-handler (fn [_] (throw (JsonParseException. (.createParser factory "") "Error Message" ))))
+        response (wrapped-handler (basic-request))]
+    (is (= {:body    "{\"kind\":\"json-parse-exception\",\"msg\":\"Error Message\\n at [Source: (String)\\\"\\\"; line: 1, column: 1]\"}"
+            :headers {"Content-Type" "application/json; charset=utf-8"}
+            :status  400}
+           response))))

@@ -1,9 +1,10 @@
 (ns puppetlabs.ring-middleware.common
-  (:require [clojure.tools.logging :as log]
-            [clojure.string :refer [join split replace-first]]
+  (:require [clojure.string :refer [replace-first]]
+            [clojure.tools.logging :as log]
             [puppetlabs.http.client.sync :refer [request]]
-            [puppetlabs.i18n.core :as i18n :refer [trs]])
-  (:import (java.net URI)))
+            [puppetlabs.i18n.core :refer [trs]])
+  (:import (java.net URI)
+           (java.util.regex Pattern)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Private utility functions
@@ -33,7 +34,7 @@
         remote-uri (URI. (.getScheme uri)
                          (.getAuthority uri)
                          (str (.getPath uri)
-                              (if (instance? java.util.regex.Pattern proxied-path)
+                              (if (instance? Pattern proxied-path)
                                 (:uri req)
                                 (replace-first (:uri req) proxied-path "")))
                          nil
