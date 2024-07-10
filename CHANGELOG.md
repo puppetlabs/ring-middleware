@@ -1,3 +1,13 @@
+# 2.0.2
+* update to clj parent 7.3.31
+* optimize the `wrap-uncaught-errors` to avoid anonymous functions, and ensure streams are closed
+* add new wrappers: 
+  * `wrap-accepts-content-type`
+  * `wrap-accepts-json`
+  * `wrap-content-type`
+  * `wrap-content-type-json`
+  * `wrap-json-parse-exception-handler`
+
 # 2.0.1
 * Updates tk-jetty-10 to 1.0.7 which includes a fix for ring handler's getRequestCharacterEncoding() function.
 
