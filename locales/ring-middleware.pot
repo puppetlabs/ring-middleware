@@ -7,6 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: puppetlabs.ring_middleware \n"
+"X-Git-Ref: c4c59b981573998be05fd4748d1b549339d201dc\n"
 "Report-Msgid-Bugs-To: docs@puppet.com\n"
 "POT-Creation-Date: \n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -53,4 +54,16 @@ msgstr ""
 
 #: src/puppetlabs/ring_middleware/core.clj
 msgid "Internal Server Error: {0}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "accept header must include {0}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "content-type {0} is not a supported type for request of type {1} at {2}"
+msgstr ""
+
+#: src/puppetlabs/ring_middleware/core.clj
+msgid "Failed to parse json for request of type {0} at {1}"
 msgstr ""
