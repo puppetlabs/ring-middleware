@@ -210,13 +210,14 @@
                    (catch utils/schema-error? e
                      (response e)))))))
 
-(defn handle-error-response
-  [e type]
+(defn- handle-error-response
+  [request e type]
   (with-open [baos (ByteArrayOutputStream.)
               print-stream (PrintStream. baos)]
     (.printStackTrace e print-stream)
-    (let [msg (trs "Internal Server Error: {0}" (.toString e))]
-      (log/error (trs "Internal Server Error: {0}" (.toString baos)))
+    (let [msg (trs "Internal Server Error: {0}" (.toString e))
+          method (-> request :request-method name str/upper-case)]
+      (log/error (trs "Internal Server Error for {1} {2}: {0}" (.toString baos) method (:uri request)))
       (case type
         :json (utils/json-response InternalServiceError
                                    {:kind :application-error
@@ -234,7 +235,7 @@
       (try
         (handler request)
         (catch Throwable e
-          (handle-error-response e type))))))
+          (handle-error-response request e type))))))
 
 (schema/defn ^:always-validate wrap-add-referrer-policy :- IFn
   "Adds referrer policy to the header as 'Referrer-Policy: no-referrer' or 'Referrer-Policy: same-origin'"

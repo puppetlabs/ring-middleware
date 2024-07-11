@@ -1,4 +1,8 @@
-# 2.0.2
+# 2.0.4
+* add calling method and uri to unhandled exception logging
+# 2.0.3 
+* released with no changes due to issues with licensing in project.clj
+# 2.0.2 - unreleased
 * update to clj parent 7.3.31
 * optimize the `wrap-uncaught-errors` to avoid anonymous functions, and ensure streams are closed
 * add new wrappers: 
